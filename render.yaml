@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: crane-inventory-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USE_LOCAL_DATA_FILE
+        value: "false"
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: inventory_system
+      - key: MONGODB_COLLECTION
+        value: app_state
+      - key: CORS_ORIGIN
+        sync: false
+
+  - type: web
+    name: crane-inventory-frontend
+    env: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        sync: false

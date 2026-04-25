@@ -1,0 +1,1273 @@
+{
+  "version": 2,
+  "companies": {
+    "trust_general": {
+      "stockAvailability": [],
+      "soldStock": [
+        {
+          "id": "b1abbf21-fc47-496b-b032-ac6e30ed025f",
+          "serialNo": "CE 130684",
+          "soldEquipmentDetails": "GH CRANES & COMPONENTS - GH D13",
+          "sellingValue": "15495",
+          "clientInfo": "K Five for General Contracting of Building Co.W.L.L",
+          "sellsDate": "2026-02-10",
+          "warranty": "1",
+          "locationDescription": "Shuaibha industrial ,Block - 5, PO Boxe 242,Safat 13003- Kuwait",
+          "department": "freelancer",
+          "otherNotes": ""
+        }
+      ],
+      "equipment": [
+        {
+          "id": "19b2c4b1-7717-468e-a1f7-17caf5954654",
+          "type": "crane",
+          "name": "GH CRANES & COMPONENTS",
+          "model": "GH D13",
+          "location": "Kuwait",
+          "status": "active",
+          "capacity": "10 Ton",
+          "lastServiceDate": "2026-02-16",
+          "notes": "Single Grided Overhead travelling Crane with 10.0 Tone under hung electrical hoist reeved on four part lines with 12.0 mm Dia wire rope",
+          "serialNumber": "CE 130684",
+          "manufacturer": "TRUST",
+          "commissionDate": "2026-02-16",
+          "warrantyExpiry": "2027-02-16",
+          "nextInspectionDate": "2027-02-15",
+          "lastInspectionDate": "2026-02-16",
+          "complianceNotes": "Complete 10 ton crane set including Girder and runner.",
+          "clientId": null,
+          "projectId": null
+        }
+      ],
+      "clients": [
+        {
+          "id": "3b76ad8d-bd81-40cf-8c8f-205191580a2f",
+          "name": "K Five for General Contracting of Building Co.W.L.L",
+          "contactName": "Mr.Johnson",
+          "email": "info@kfivekw.com",
+          "phone": "94066836",
+          "address": "Shuaibha industrial ,Block - 5, PO Boxe 242,Safat 13003- Kuwait"
+        }
+      ],
+      "projects": [
+        {
+          "id": "38501d83-eff2-4af4-9fb2-b30657d1e358",
+          "name": "GH CRANES & COMPONENTS - GH D13",
+          "clientId": "3b76ad8d-bd81-40cf-8c8f-205191580a2f",
+          "projectValue": "15495",
+          "description": "",
+          "startDate": "2026-02-10",
+          "endDate": "2027-02-10",
+          "status": "active"
+        }
+      ],
+      "serviceHistory": [],
+      "activityLog": [
+        {
+          "id": "95cbab7e-8f52-44ae-bfaf-9c0cab09f3fc",
+          "timestamp": "2026-04-25T11:05:50.850Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "bb9db247-f3f7-4302-b3ea-cfce80fe31d7",
+          "timestamp": "2026-04-25T10:55:56.807Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e9d470d3-2e43-46d2-93cc-373308950d83",
+          "timestamp": "2026-04-25T10:29:19.650Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8faed26a-87f8-4cdf-8b1f-839848a6f3f0",
+          "timestamp": "2026-04-25T10:26:51.769Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "c9aa0ccb-6789-4ea8-ad13-694c9a4c0f5f",
+          "timestamp": "2026-04-25T10:07:01.283Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "1bdaba94-cee8-4089-8ad0-16f78dfe9e99",
+          "timestamp": "2026-04-25T09:55:30.714Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "998fa58a-3f9b-4831-975f-5641a353d06f",
+          "timestamp": "2026-04-25T09:51:18.012Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "b1951e36-af11-4f35-bc28-318d1646e958",
+          "timestamp": "2026-04-25T09:48:34.855Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8eb4560d-639f-4c73-8af5-1a58e5bd8a7f",
+          "timestamp": "2026-04-25T09:48:23.428Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e655b619-1263-4084-bbf3-e72bebeb1599",
+          "timestamp": "2026-04-25T08:56:16.739Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2e31443b-4e88-41e7-a8ba-eb46b6e2dfeb",
+          "timestamp": "2026-04-25T08:25:38.665Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "34e4dd8e-45d7-412c-a4b8-fa34a2c2a0a2",
+          "timestamp": "2026-04-25T08:24:46.768Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "fd7b5d8e-d58e-4cc8-8a43-f04a8af27b0e",
+          "timestamp": "2026-04-25T05:45:45.629Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "9004fc2f-29e5-4b2f-811a-fe0628efad6c",
+          "timestamp": "2026-04-14T06:12:09.537Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8ab46907-640e-4b29-84a3-bcc982191f4d",
+          "timestamp": "2026-04-13T08:51:03.941Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "89b067fa-69ab-4825-bc00-f23d7a0dc402",
+          "timestamp": "2026-04-12T08:36:59.475Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a53ec8f3-f8c7-4391-a3be-2f330fb587ab",
+          "timestamp": "2026-04-12T08:29:30.619Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "f5ab181e-0ad0-402f-85cd-ba8838258479",
+          "timestamp": "2026-04-12T08:19:16.956Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "6349dccb-086c-4346-8a99-c0960a7ad5eb",
+          "timestamp": "2026-04-12T08:12:59.512Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "3abc347c-3fae-485f-a53d-9245568d67ad",
+          "timestamp": "2026-04-12T08:07:54.568Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "f4297580-e38d-4dab-bdc6-c7df4f678e97",
+          "timestamp": "2026-04-12T07:58:15.333Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Projects",
+          "action": "Updated project",
+          "details": "GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "8bc76ffe-0288-41b1-8d09-1c4d36c508f6",
+          "timestamp": "2026-04-12T07:57:38.206Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Projects",
+          "action": "Updated project",
+          "details": "GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "e6772e55-d08f-4f7e-b557-1c373f16202d",
+          "timestamp": "2026-04-12T07:57:13.315Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Projects",
+          "action": "Updated project",
+          "details": "GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "7ff44f94-c77c-4d94-9de2-ecc26be74ade",
+          "timestamp": "2026-04-12T07:56:44.567Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Projects",
+          "action": "Added project",
+          "details": "GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "f6b462b8-1118-4a7e-9f7b-76a72f09a919",
+          "timestamp": "2026-04-12T07:52:36.221Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "85b85dd0-ef3b-4f0a-86ea-fa9fccf3c290",
+          "timestamp": "2026-04-12T07:43:32.240Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a2f28138-6c06-4582-a4d5-bbf60ef912a1",
+          "timestamp": "2026-04-12T07:34:21.887Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "75515258-1c06-4975-b6cb-a5ee947b526b",
+          "timestamp": "2026-04-12T07:18:28.523Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "68283f91-41c5-4e3e-ae88-bac5d5ce3846",
+          "timestamp": "2026-04-12T06:04:11.970Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a7131972-05bf-4d24-90f7-acf95616be61",
+          "timestamp": "2026-04-09T09:29:43.790Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "96ada152-b90a-49a6-a1bd-3e9bc2e932c8",
+          "timestamp": "2026-04-09T07:37:21.801Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "223c1e81-50ef-4584-8b0d-4596102979d5",
+          "timestamp": "2026-04-09T05:40:18.713Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "bc3b3338-bd04-4826-92c9-886323763d15",
+          "timestamp": "2026-04-08T09:35:25.779Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2bcea630-5e82-4bff-97e4-7ad75b532853",
+          "timestamp": "2026-04-08T08:48:00.070Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "79480e8d-bc88-4abf-bc16-5a56f1653ba3",
+          "timestamp": "2026-04-08T08:46:44.572Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2133628d-a449-42b6-9949-00c76be477c5",
+          "timestamp": "2026-04-08T08:25:42.138Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "f4a44afb-bfee-42e2-9186-cf07e9fad1f6",
+          "timestamp": "2026-04-08T08:23:37.531Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "239192a5-2819-41c1-927e-784bc88f0b66",
+          "timestamp": "2026-04-08T07:48:56.787Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "b9cf046e-e54b-49bb-b942-097b5e75a969",
+          "timestamp": "2026-04-08T06:34:55.981Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "73ddc5e2-a686-4812-ac4c-22ec6a11822a",
+          "timestamp": "2026-04-08T06:22:12.538Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "3c7535a0-7623-4801-acd3-e8b2c397fc69",
+          "timestamp": "2026-04-08T06:08:16.907Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "84dae70d-66a5-4ce8-a968-fc87ca35084e",
+          "timestamp": "2026-04-08T05:54:24.106Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "47f0f12c-fbb0-4cd7-a4b8-868379747bcc",
+          "timestamp": "2026-04-08T05:47:08.096Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "1e428759-39c6-4c68-9595-86b025d527a4",
+          "timestamp": "2026-04-07T11:59:55.214Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "dc718dce-4a53-46e1-b21a-5ce2dc5e1f5d",
+          "timestamp": "2026-04-07T11:23:02.748Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "c73c787e-16f9-41b6-90c2-db6d79c7b589",
+          "timestamp": "2026-04-07T11:20:17.271Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e02df500-79d6-4a79-9959-d1ab51b578ca",
+          "timestamp": "2026-04-07T11:14:37.420Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "04826b14-f1c2-4a63-9fb6-ed516841baa7",
+          "timestamp": "2026-04-07T11:11:59.767Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d3b21e48-5346-4ccc-9a3e-7a39bec8370e",
+          "timestamp": "2026-04-07T10:28:37.607Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "f13df8f6-39c2-4839-ae2e-b95913821a7c",
+          "timestamp": "2026-04-07T08:59:15.755Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e76d1c6d-16c7-48db-ad90-c2a6104dc45e",
+          "timestamp": "2026-04-07T07:43:22.279Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8c930fc5-0869-4f87-b8bd-cbd1789cb356",
+          "timestamp": "2026-04-07T07:35:10.880Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "5580e16f-88cc-4f8f-bd16-b67e3457ebaa",
+          "timestamp": "2026-04-07T07:13:08.932Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "45c51937-06ab-4fbe-902c-1a293f137a4d",
+          "timestamp": "2026-04-07T07:12:01.815Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "0d6b8cda-7a0f-4f1c-b4f7-3f2e478773e4",
+          "timestamp": "2026-04-07T06:56:36.447Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "84e9ad2b-2918-4b05-924e-db38b282bc70",
+          "timestamp": "2026-04-07T06:39:13.401Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Deleted file",
+          "details": "sold:b1abbf21-fc47-496b-b032-ac6e30ed025f - Create a fully designed 14-page A4 portrait brochure for Trust Factory for Fabrications Trust General Trading Contracting, an ISO 90012015 certified company established in 2004 in Kuwait. The design should be modern a.pdf"
+        },
+        {
+          "id": "9063da88-fd3d-4078-a1b7-3d2807fa4187",
+          "timestamp": "2026-04-07T06:38:48.986Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e24abaaf-391b-4665-99bc-19c89c9b7826",
+          "timestamp": "2026-04-07T06:29:06.760Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2803529b-17b4-4ac0-ba94-43362304c399",
+          "timestamp": "2026-04-07T06:28:43.734Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Uploaded file",
+          "details": "sold:b1abbf21-fc47-496b-b032-ac6e30ed025f - 207 - Trust.pdf"
+        },
+        {
+          "id": "8c9cad89-7082-4bbb-a785-08275e36dde6",
+          "timestamp": "2026-04-07T06:28:43.721Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Uploaded file",
+          "details": "sold:b1abbf21-fc47-496b-b032-ac6e30ed025f - kfive 26005.pdf"
+        },
+        {
+          "id": "f1f5051d-7962-477a-8eeb-0a30a99a34c2",
+          "timestamp": "2026-04-07T06:28:43.685Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Updated sold record",
+          "details": "CE 130684 - GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "47471561-d3d7-402d-a77c-7299369c6931",
+          "timestamp": "2026-04-07T06:27:42.310Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "27e3e1ed-9bf9-4098-8a82-b6c3f1df7cea",
+          "timestamp": "2026-04-07T06:18:17.124Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d7322b99-3527-4bc8-91b1-6c67990956cb",
+          "timestamp": "2026-04-07T06:06:54.020Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "69639bb3-8904-4f10-8e13-1ece0ec81b63",
+          "timestamp": "2026-04-07T05:28:53.762Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "5d6f7c2b-884a-413d-ac8b-51f0302e8071",
+          "timestamp": "2026-04-06T05:18:39.016Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "5227099a-f857-459a-b345-6e68f50c5383",
+          "timestamp": "2026-04-05T11:12:39.644Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "4acc2696-3744-402d-9d07-1367d605fb2b",
+          "timestamp": "2026-04-05T10:31:05.655Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a879ef42-f18e-4af4-889f-8f671102810b",
+          "timestamp": "2026-04-05T10:22:17.320Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "ac24346d-adca-4f97-af53-208890f31000",
+          "timestamp": "2026-04-05T10:18:42.868Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e14678c5-d6df-4106-9dfd-a6ec38e693da",
+          "timestamp": "2026-04-05T10:08:48.898Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "cfffa8d7-4199-4b82-9bac-048aa1404750",
+          "timestamp": "2026-04-05T09:24:15.754Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Updated sold record",
+          "details": "CE 130684 - GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "2f92cf1f-0d24-4d7b-af36-05ce92143ce5",
+          "timestamp": "2026-04-05T09:08:10.421Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Updated equipment record",
+          "details": "crane - GH CRANES & COMPONENTS (Serial: CE 130684)"
+        },
+        {
+          "id": "7823c04b-8ddb-45bd-9796-53975538fb96",
+          "timestamp": "2026-04-05T08:55:46.288Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "4efdbd12-7471-4fd7-b83c-02faac8eb5b3",
+          "timestamp": "2026-04-05T08:50:05.414Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "3073ac36-1442-4c54-bde5-f8a0aa0ef4ab",
+          "timestamp": "2026-04-05T08:33:00.301Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "cce5eb60-ff00-483a-8534-0e7f5849bb52",
+          "timestamp": "2026-04-05T07:43:57.192Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "3df38b9c-e196-422e-8378-f0fa815c057b",
+          "timestamp": "2026-04-05T05:54:54.092Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "bf449860-9a22-4149-937b-8aa98238a72b",
+          "timestamp": "2026-04-05T05:34:04.590Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "027dfb41-da91-413c-8a8d-dc802be1bd59",
+          "timestamp": "2026-04-05T05:31:11.845Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a33641ce-5641-4167-aa86-5cdcbf97c5e8",
+          "timestamp": "2026-04-05T05:28:42.993Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "6aa419be-2193-4cc5-9c41-ba0fbb6bf41d",
+          "timestamp": "2026-04-05T05:20:05.399Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "790b9082-601a-4e94-81cd-3dfaf5c155e1",
+          "timestamp": "2026-04-04T09:59:36.410Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d9995a31-9000-48df-b747-48a06341556f",
+          "timestamp": "2026-04-04T09:33:07.793Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Uploaded file",
+          "details": "sold:b1abbf21-fc47-496b-b032-ac6e30ed025f - Create a fully designed 14-page A4 portrait brochure for Trust Factory for Fabrications Trust General Trading Contracting, an ISO 90012015 certified company established in 2004 in Kuwait. The design should be modern a.pdf"
+        },
+        {
+          "id": "3c4b1698-cd0e-483d-bae7-519702148e2a",
+          "timestamp": "2026-04-04T09:33:07.750Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Updated sold record",
+          "details": "CE 130684 - GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "a3388e5c-4649-4778-9588-9f07cc3cf6c8",
+          "timestamp": "2026-04-04T09:28:43.956Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "35b0836b-8123-41e0-a69c-841951cabaee",
+          "timestamp": "2026-04-04T09:25:55.162Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "98f77298-c6cc-471d-a00e-d2ca293be743",
+          "timestamp": "2026-04-04T09:18:52.964Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "bd202894-f6bc-47a2-aaf7-30de1e597376",
+          "timestamp": "2026-04-04T09:11:42.416Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a721438f-2916-44be-9606-301248ed6045",
+          "timestamp": "2026-04-04T08:57:33.318Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Updated sold record",
+          "details": "CE 130684 - GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "b6825e6d-f9f7-4c3b-b7f5-2de18913e78a",
+          "timestamp": "2026-04-04T08:52:52.215Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "ed3bddb8-1d0d-433a-9dff-f8fb6e82ebd2",
+          "timestamp": "2026-04-04T08:42:27.514Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "85669533-2234-49d7-894b-a9e1df7f803b",
+          "timestamp": "2026-04-04T08:39:45.674Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "4fb3017c-398b-4731-a462-0f2a5694b111",
+          "timestamp": "2026-04-04T08:18:43.159Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Updated equipment record",
+          "details": "crane - GH CRANES & COMPONENTS (Serial: CE 130684)"
+        },
+        {
+          "id": "6b0069a0-8ebe-430f-9bbb-11150e5d1c11",
+          "timestamp": "2026-04-04T08:17:58.713Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2062f9c9-60de-4e85-b9b8-6ac1ffaee5fa",
+          "timestamp": "2026-04-04T08:07:56.873Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "7a1597e6-c4f2-4415-83fa-b2071612fc65",
+          "timestamp": "2026-04-04T07:47:56.935Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "5e058bd7-765c-4101-b8d1-c176ae75be05",
+          "timestamp": "2026-04-04T07:28:18.084Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Added sold record",
+          "details": "CE 130684 - GH CRANES & COMPONENTS - GH D13"
+        },
+        {
+          "id": "e16e53dd-5ffb-43d9-b4c6-41026bbea72e",
+          "timestamp": "2026-04-04T07:26:20.303Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Clients",
+          "action": "Added client",
+          "details": "K Five for General Contracting of Building Co.W.L.L"
+        },
+        {
+          "id": "73c8cf48-d562-4558-9eca-fa1fa56191e7",
+          "timestamp": "2026-04-04T07:21:03.639Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Deleted sold record",
+          "details": "5464 - wewa - rq"
+        },
+        {
+          "id": "6d8ab411-84f4-450c-9ae2-40ede24c83b0",
+          "timestamp": "2026-04-04T07:20:40.964Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Updated equipment record",
+          "details": "crane - GH CRANES & COMPONENTS (Serial: CE 130684)"
+        },
+        {
+          "id": "8540ebb8-e9c3-4be7-bb2c-acf38328b1ae",
+          "timestamp": "2026-04-04T07:20:29.578Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Added equipment record",
+          "details": "crane - GH CRANES & cOMPONENTS (Serial: CE 130684)"
+        },
+        {
+          "id": "a85b6a7f-ce46-442d-bf4d-10b117b6bb29",
+          "timestamp": "2026-04-04T07:09:19.251Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Deleted equipment record",
+          "details": "crane - wewa"
+        },
+        {
+          "id": "6765e2ef-5d9f-45de-9a3e-ac5a2cb97117",
+          "timestamp": "2026-04-04T07:09:08.106Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "a09ed9fc-f988-41fc-90e1-82b73784f331",
+          "timestamp": "2026-04-04T06:46:22.590Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "e57e10c5-39a2-45ef-968f-aa00a281e7e8",
+          "timestamp": "2026-04-04T06:46:22.507Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "76ae5206-2f9c-41cd-bc4a-368b70ae5715",
+          "timestamp": "2026-04-04T06:12:35.386Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "c8fb2b7b-d6ca-4607-b0f2-43379a4ba2a8",
+          "timestamp": "2026-04-04T06:11:30.327Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "ff0f3033-bebd-47d4-92c9-c3616f995267",
+          "timestamp": "2026-04-04T06:03:41.471Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8de08e29-83b3-4a89-8b7b-aa62d9143d92",
+          "timestamp": "2026-04-04T05:59:04.608Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "f1508da2-10e1-49f9-bbee-50cd224f6dab",
+          "timestamp": "2026-04-04T05:46:12.910Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d216e60c-e386-49df-8125-3cae87a4d1a8",
+          "timestamp": "2026-04-04T05:37:37.127Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "bc4391ed-36f3-427a-ac5c-3a9d7cc3fdd4",
+          "timestamp": "2026-04-04T05:37:23.479Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "01aee4f3-6c62-4960-a8cd-b7c25a1f0c80",
+          "timestamp": "2026-04-02T12:08:32.942Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "3c303853-e8c5-4590-a228-7f1a340e723f",
+          "timestamp": "2026-04-02T11:23:55.363Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Uploaded file",
+          "details": "equipment:639b4587-9847-4315-a4d8-e7c398bbf335 - Crystal Reports - Purchase Order 126110119.pdf"
+        },
+        {
+          "id": "b15afaa6-11b0-47dd-b46c-33675d8410b1",
+          "timestamp": "2026-04-02T11:23:55.349Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Files",
+          "action": "Uploaded file",
+          "details": "equipment:639b4587-9847-4315-a4d8-e7c398bbf335 - stock-availability-2026-03-29.xlsx"
+        },
+        {
+          "id": "95a29d15-4150-4744-a97e-e2c2e79cab4e",
+          "timestamp": "2026-04-02T11:23:55.331Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Updated equipment record",
+          "details": "crane - wewa (Serial: 5464)"
+        },
+        {
+          "id": "150830c6-89fc-44bf-8d48-65f8f1305e25",
+          "timestamp": "2026-04-02T10:56:11.293Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "2a804d3e-91f6-48af-a572-d3969ef03228",
+          "timestamp": "2026-04-02T10:56:11.261Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "633f25ca-89ed-4952-912a-b6fe04f1b0b1",
+          "timestamp": "2026-04-02T10:55:48.383Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "77415edd-5f31-440a-9148-2b46186a33d2",
+          "timestamp": "2026-04-02T10:49:16.981Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "7581e06a-462b-408c-8424-e7e18cc7fda7",
+          "timestamp": "2026-04-02T10:26:30.172Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d53f53b9-5940-4d61-8697-1d0a400e5a05",
+          "timestamp": "2026-04-02T10:21:21.170Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "fce97dcc-c343-4297-a36f-9a98f1bb0764",
+          "timestamp": "2026-04-02T09:25:42.127Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Sold stock",
+          "action": "Added sold record",
+          "details": "5464 - wewa - rq"
+        },
+        {
+          "id": "614c661a-b650-4bf5-a3a7-d7f09e5a4e4b",
+          "timestamp": "2026-04-02T09:25:23.833Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Equipment",
+          "action": "Added equipment record",
+          "details": "crane - wewa (Serial: 5464)"
+        },
+        {
+          "id": "41f719f8-a635-4779-be9a-04feeac0eca2",
+          "timestamp": "2026-04-02T09:24:17.105Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        }
+      ],
+      "recordFiles": [
+        {
+          "id": "1f7cbe8e-896e-409b-ab50-554d1493a5b9",
+          "entityType": "equipment",
+          "entityId": "639b4587-9847-4315-a4d8-e7c398bbf335",
+          "originalName": "stock-availability-2026-03-29.xlsx",
+          "storedName": "1775129035344-a7d0ac90-6a0c-427b-a081-78e837dccf86.xlsx",
+          "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "size": 16374,
+          "uploadedAt": "2026-04-02T11:23:55.349Z",
+          "uploadedBy": "Manager"
+        },
+        {
+          "id": "4e301a18-d244-4276-b434-c9f9bbcd7159",
+          "entityType": "equipment",
+          "entityId": "639b4587-9847-4315-a4d8-e7c398bbf335",
+          "originalName": "Crystal Reports - Purchase Order 126110119.pdf",
+          "storedName": "1775129035359-06d7c617-2124-46fb-ac2f-4360194f1e8d.pdf",
+          "mimeType": "application/pdf",
+          "size": 215963,
+          "uploadedAt": "2026-04-02T11:23:55.363Z",
+          "uploadedBy": "Manager"
+        },
+        {
+          "id": "f1381135-bb3e-415b-9355-a92af243e489",
+          "entityType": "sold",
+          "entityId": "b1abbf21-fc47-496b-b032-ac6e30ed025f",
+          "originalName": "kfive 26005.pdf",
+          "storedName": "1775543323705-38e6218d-2487-4588-ae7d-c23e7140a6c1.pdf",
+          "mimeType": "application/pdf",
+          "size": 367174,
+          "uploadedAt": "2026-04-07T06:28:43.721Z",
+          "uploadedBy": "Manager",
+          "slot": "invoice"
+        },
+        {
+          "id": "64003106-1b03-4c88-b322-24feba4a8d69",
+          "entityType": "sold",
+          "entityId": "b1abbf21-fc47-496b-b032-ac6e30ed025f",
+          "originalName": "207 - Trust.pdf",
+          "storedName": "1775543323729-07b81ff1-59ef-4fcf-a4d7-5969bfa3106b.pdf",
+          "mimeType": "application/pdf",
+          "size": 320745,
+          "uploadedAt": "2026-04-07T06:28:43.733Z",
+          "uploadedBy": "Manager",
+          "slot": "purchase_order"
+        }
+      ],
+      "roleEditAccess": {
+        "technician": false,
+        "account": false
+      },
+      "stockAlertEmailLastDailyDate": "2026-04-25",
+      "stockAlertEmailLastSentAt": {}
+    },
+    "trust_factory": {
+      "stockAvailability": [],
+      "soldStock": [],
+      "equipment": [],
+      "clients": [],
+      "projects": [],
+      "serviceHistory": [],
+      "activityLog": [],
+      "recordFiles": [],
+      "roleEditAccess": {
+        "technician": false,
+        "account": false
+      },
+      "stockAlertEmailLastDailyDate": "",
+      "stockAlertEmailLastSentAt": {}
+    }
+  }
+}
