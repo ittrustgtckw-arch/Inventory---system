@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventory-pwa-v7";
+const CACHE_NAME = "inventory-pwa-v8";
 const APP_SHELL = ["/", "/index.html", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
