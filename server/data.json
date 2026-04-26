@@ -1250,8 +1250,10 @@
         "technician": false,
         "account": false
       },
-      "stockAlertEmailLastDailyDate": "2026-04-25",
-      "stockAlertEmailLastSentAt": {}
+      "stockAlertEmailLastDailyDate": "2026-04-26",
+      "stockAlertEmailLastSentAt": {
+        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777192500882
+      }
     },
     "trust_factory": {
       "stockAvailability": [],
@@ -1266,8 +1268,10 @@
         "technician": false,
         "account": false
       },
-      "stockAlertEmailLastDailyDate": "",
-      "stockAlertEmailLastSentAt": {}
+      "stockAlertEmailLastDailyDate": "2026-04-26",
+      "stockAlertEmailLastSentAt": {
+        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777192504565
+      }
     }
   }
 }

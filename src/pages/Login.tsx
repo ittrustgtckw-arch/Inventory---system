@@ -52,7 +52,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setError(data.message || t("login.invalidCreds"));
+        if (res.status === 404) {
+          setError(t("login.apiNotReachable"));
+        } else {
+          setError(data.message || t("login.invalidCreds"));
+        }
         setIsSubmitting(false);
         return;
       }

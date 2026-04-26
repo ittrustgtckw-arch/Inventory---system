@@ -39,6 +39,8 @@ const resources = {
         signingIn: "Signing in...",
         invalidCreds: "Invalid email or password.",
         serverError: "Unable to reach server. Please try again.",
+        apiNotReachable:
+          "Login API not found (404). On Render: set Environment variable VITE_API_URL to your backend URL (e.g. https://your-api.onrender.com), then Clear build cache & deploy the static site.",
       },
       import: {
         uploadFile: "Upload file",
@@ -669,6 +671,8 @@ const resources = {
         signingIn: "جارٍ تسجيل الدخول...",
         invalidCreds: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
         serverError: "تعذر الوصول إلى الخادم. حاول مرة أخرى.",
+        apiNotReachable:
+          "لم يتم العثور على واجهة تسجيل الدخول (404). على Render: اضبط المتغير VITE_API_URL على رابط الخادم الخلفي ثم أعد نشر الموقع الثابت.",
       },
       import: {
         uploadFile: "رفع ملف",
