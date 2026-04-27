@@ -52,6 +52,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [selectedCompanyId, setSelectedCompanyIdState] = useState<CompanyId>(() => getSelectedCompanyId());
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const companyMenuRef = useRef<HTMLDivElement | null>(null);
   const companies = getAllCompanyMeta();
   const companyLogos: Record<CompanyId, string> = {
@@ -152,6 +153,38 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     document.documentElement.lang = activeLang;
     document.documentElement.dir = activeLang === "ar" ? "rtl" : "ltr";
   }, [i18n.language, i18n.resolvedLanguage, location.pathname, location.search]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 991.98px)");
+    const syncBody = () => {
+      if (!mq.matches) {
+        document.body.classList.remove("mobile-nav-open");
+        return;
+      }
+      if (mobileNavOpen) document.body.classList.add("mobile-nav-open");
+      else document.body.classList.remove("mobile-nav-open");
+    };
+    syncBody();
+    const onMq = () => syncBody();
+    mq.addEventListener("change", onMq);
+    return () => {
+      mq.removeEventListener("change", onMq);
+      document.body.classList.remove("mobile-nav-open");
+    };
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     if (!companyMenuOpen) return;
@@ -297,6 +330,16 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     <div className="app-shell">
       <header className="top-bar">
         <div className="top-bar-left">
+          <button
+            type="button"
+            className="ghost-button mobile-nav-toggle"
+            onClick={() => setMobileNavOpen((o) => !o)}
+            aria-expanded={mobileNavOpen}
+            aria-controls="app-side-nav"
+            aria-label={mobileNavOpen ? t("nav.closeMenu") : t("nav.menu")}
+          >
+            <i className={mobileNavOpen ? "bi bi-x-lg" : "bi bi-list"} aria-hidden />
+          </button>
           <Link to="/dashboard" className="brand">
             <div className="brand-mark">
               <img src={companyLogos[selectedCompany.id]} alt="" className="brand-logo-image" width={40} height={40} />
@@ -386,8 +429,15 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
         </div>
       </header>
 
-      <div className="main-layout">
-        <nav className="side-nav">
+      <div className={`main-layout${mobileNavOpen ? " mobile-nav-open" : ""}`}>
+        <button
+          type="button"
+          className="mobile-nav-backdrop"
+          aria-label={t("nav.closeMenu")}
+          tabIndex={mobileNavOpen ? 0 : -1}
+          onClick={() => setMobileNavOpen(false)}
+        />
+        <nav className="side-nav" id="app-side-nav">
           <NavLink to="/dashboard" className="nav-item nav-item-dashboard">
             <i className="bi bi-speedometer2 nav-icon nav-icon-dashboard" />
             <span className="nav-label">{t("nav.dashboard")}</span>

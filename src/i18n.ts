@@ -50,6 +50,8 @@ const resources = {
         skippedRows: "Skipped {{fail}}.",
       },
       nav: {
+        menu: "Menu",
+        closeMenu: "Close menu",
         dashboard: "Dashboard",
         inventory: "Inventory",
         stockAvailability: "Stock availability",
@@ -682,6 +684,8 @@ const resources = {
         skippedRows: "تم تخطي {{fail}} صف.",
       },
       nav: {
+        menu: "القائمة",
+        closeMenu: "إغلاق القائمة",
         dashboard: "لوحة التحكم",
         inventory: "المخزون",
         stockAvailability: "توفر المخزون",
