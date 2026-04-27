@@ -360,11 +360,12 @@ function msUntilNextStockAlertDailyRun(hour, minute) {
   next.setSeconds(0, 0);
   next.setMilliseconds(0);
   next.setHours(hour, minute, 0, 0);
-  if (next.getTime() <= now.getTime()) {
+  // Advance day until strictly in the future (handles DST / odd clock edges).
+  let guard = 0;
+  while (next.getTime() <= now.getTime() && guard++ < 370) {
     next.setDate(next.getDate() + 1);
   }
   const ms = next.getTime() - now.getTime();
-  // DST / clock edges can theoretically yield <= 0; never schedule in the past.
   return Math.max(60_000, ms);
 }
 
@@ -2563,8 +2564,9 @@ function scheduleStockAlertEmailDailyLoop() {
   };
   const firstDelay = msUntilNextStockAlertDailyRun(hour, minute);
   const nextMin = Math.max(1, Math.round(firstDelay / 60000));
+  const tz = String(process.env.TZ || "").trim() || "(default UTC)";
   console.log(
-    `[env] Stock alert email: once per day at ${hh}:${mm} (server local time). Next run in ~${nextMin} min.`
+    `[env] Stock alert email: once per day at ${hh}:${mm} (server local time, TZ=${tz}). Next run in ~${nextMin} min [scheduler-v2].`
   );
   setTimeout(tick, firstDelay);
 }
