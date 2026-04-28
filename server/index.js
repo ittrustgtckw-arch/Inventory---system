@@ -170,6 +170,7 @@ let stockAlertEmailLastDailyDate = "";
 /** YYYY-MM-DD when the scheduled daily stock digest was already sent (one email total, all workspaces). */
 let globalStockAlertDigestDate = "";
 let stockAlertDigestInFlight = false;
+let localStockDigestClaimDate = "";
 
 const DATA_FILE = path.join(__dirname, "data.json");
 const MONGODB_URI = String(process.env.MONGODB_URI || "").trim();
@@ -182,6 +183,26 @@ const USE_LOCAL_DATA_FILE = String(process.env.USE_LOCAL_DATA_FILE || (MONGODB_U
 let mongoClient = null;
 let mongoCollection = null;
 let mongoPersistTimer = null;
+
+/**
+ * Cross-instance daily claim for stock digest sending.
+ * - Mongo mode: atomic updateOne filter ensures only one process can claim per day.
+ * - Local-file mode: falls back to process-local claim.
+ */
+async function claimDailyStockDigestSend(today) {
+  if (!today) return false;
+  if (mongoCollection) {
+    const r = await mongoCollection.updateOne(
+      { _id: MONGODB_DOC_ID, stockDigestClaimDate: { $ne: today } },
+      { $set: { stockDigestClaimDate: today, stockDigestClaimedAt: new Date().toISOString() } },
+      { upsert: true }
+    );
+    return Boolean((r && r.modifiedCount > 0) || (r && r.upsertedCount > 0));
+  }
+  if (localStockDigestClaimDate === today) return false;
+  localStockDigestClaimDate = today;
+  return true;
+}
 const COMPANY_IDS = ["trust_general", "trust_factory"];
 const DEFAULT_COMPANY_ID = "trust_general";
 let activeCompanyId = DEFAULT_COMPANY_ID;
@@ -758,6 +779,10 @@ async function sendStockLevelEmailDigestForAllCompanies() {
   const recipients = getStockAlertRecipients();
   if (!transporter) return { skipped: true, reason: "smtp_not_configured" };
   if (recipients.length === 0) return { skipped: true, reason: "no_recipients" };
+
+  // Hard dedupe across multiple running instances (same DB): first claimant for "today" wins.
+  const claimed = await claimDailyStockDigestSend(today);
+  if (!claimed) return { skipped: true, reason: "daily_limit" };
 
   stockAlertDigestInFlight = true;
   const previousCompany = activeCompanyId;
