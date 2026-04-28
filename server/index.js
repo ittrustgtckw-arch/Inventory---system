@@ -32,12 +32,86 @@ app.use("/uploads", express.static(UPLOADS_DIR));
 
 const PORT = process.env.PORT || 3001;
 
-const USERS = [
-  { username: "admin@company.com", password: "admin123", role: "admin", displayName: "Admin" },
-  { username: "manager@gtc.com", password: "manager123", role: "manager", displayName: "Manager" },
-  { username: "technician@company.com", password: "technician123", role: "technician", displayName: "Technician" },
-  { username: "account@company.com", password: "account123", role: "account", displayName: "Account" },
+const USER_SEED = [
+  { username: "admin@company.com", password: "admin123", role: "admin", displayName: "Admin", active: true },
+  { username: "manager@gtc.com", password: "manager123", role: "manager", displayName: "Manager", active: true },
+  { username: "technician@company.com", password: "technician123", role: "technician", displayName: "Technician", active: true },
+  { username: "account@company.com", password: "account123", role: "account", displayName: "Account", active: true },
 ];
+
+/** Global user directory (persisted in Mongo / data.json under `users`). */
+let usersPersisted = USER_SEED.map((u) => ({ ...u }));
+
+function cloneSeedUsers() {
+  return USER_SEED.map((u) => ({ ...u }));
+}
+
+function normalizePersistedUsers(arr) {
+  const allowedRoles = new Set(["admin", "manager", "technician", "account"]);
+  const out = [];
+  const seen = new Set();
+  for (const raw of arr) {
+    if (!raw || typeof raw !== "object") continue;
+    const username = String(raw.username || "").trim().toLowerCase();
+    if (!username || seen.has(username)) continue;
+    const role = String(raw.role || "").trim().toLowerCase();
+    if (!allowedRoles.has(role)) continue;
+    const password = String(raw.password || "");
+    if (password.length < 6) continue;
+    seen.add(username);
+    out.push({
+      username,
+      password,
+      role,
+      displayName: String(raw.displayName || role).trim() || role,
+      active: raw.active === false ? false : true,
+    });
+  }
+  const hasManager = out.some((u) => u.role === "manager" && u.active !== false);
+  if (!hasManager) {
+    const m = cloneSeedUsers().find((u) => u.role === "manager");
+    if (m) out.unshift({ ...m });
+  }
+  return out.length ? out : cloneSeedUsers();
+}
+
+function getUsersPersisted() {
+  return usersPersisted;
+}
+
+function findUserRecord(loginKey) {
+  const k = String(loginKey || "").trim().toLowerCase();
+  return usersPersisted.find((u) => String(u.username || "").trim().toLowerCase() === k);
+}
+
+function userPublic(u) {
+  if (!u) return null;
+  return {
+    username: u.username,
+    role: u.role,
+    displayName: u.displayName || u.role,
+    active: u.active !== false,
+  };
+}
+
+function activeManagerCount(list) {
+  return list.filter((u) => String(u.role || "").toLowerCase() === "manager" && u.active !== false).length;
+}
+
+/** Returns true if applying patch to target would leave zero active managers. */
+function wouldRemoveLastActiveManager(target, patch) {
+  const nextRole =
+    patch.role != null ? String(patch.role || "").trim().toLowerCase() : String(target.role || "").toLowerCase();
+  const nextActive =
+    patch.active === false ? false : patch.active === true ? true : target.active !== false;
+  const sim = usersPersisted.map((u) => {
+    if (String(u.username || "").trim().toLowerCase() !== String(target.username || "").trim().toLowerCase()) {
+      return u;
+    }
+    return { ...u, role: nextRole, active: nextActive };
+  });
+  return activeManagerCount(sim) < 1;
+}
 
 const EQUIPMENT_TYPES = [
   "crane",
@@ -93,6 +167,9 @@ let recordFiles = [];
 // In-memory stock alert email cooldown tracker: key -> last sent timestamp.
 const stockAlertEmailLastSentAt = new Map();
 let stockAlertEmailLastDailyDate = "";
+/** YYYY-MM-DD when the scheduled daily stock digest was already sent (one email total, all workspaces). */
+let globalStockAlertDigestDate = "";
+let stockAlertDigestInFlight = false;
 
 const DATA_FILE = path.join(__dirname, "data.json");
 const MONGODB_URI = String(process.env.MONGODB_URI || "").trim();
@@ -242,6 +319,11 @@ function hydrateStoreFromData(data) {
     companyStore.trust_general.roleEditAccess =
       data.roleEditAccess && typeof data.roleEditAccess === "object" ? data.roleEditAccess : defaultRoleEditAccess();
   }
+  if (data && Array.isArray(data.users) && data.users.length > 0) {
+    usersPersisted = normalizePersistedUsers(data.users);
+  } else {
+    usersPersisted = cloneSeedUsers();
+  }
   bindCompanyData(DEFAULT_COMPANY_ID);
 }
 
@@ -257,6 +339,7 @@ function loadPersistedDataFromFile() {
     COMPANY_IDS.forEach((id) => {
       companyStore[id] = createEmptyCompanyState();
     });
+    usersPersisted = cloneSeedUsers();
     bindCompanyData(DEFAULT_COMPANY_ID);
   }
 }
@@ -278,6 +361,7 @@ function extractPersistableState() {
   return {
     version: 2,
     companies: companyStore,
+    users: usersPersisted,
   };
 }
 
@@ -387,10 +471,10 @@ function csvEmails(raw) {
 }
 
 function getStockAlertRecipients() {
-  const managerDefault = USERS.find((u) => String(u.role || "").toLowerCase() === "manager")?.username || "";
+  const managerDefault = usersPersisted.find((u) => String(u.role || "").toLowerCase() === "manager")?.username || "";
   const procurementDefault =
     String(process.env.PROCUREMENT_EMAIL || "").trim().toLowerCase() ||
-    USERS.find((u) => String(u.role || "").toLowerCase() === "account")?.username ||
+    usersPersisted.find((u) => String(u.role || "").toLowerCase() === "account")?.username ||
     "";
   const managerEmails = csvEmails(process.env.ALERT_MAIL_TO_MANAGER || managerDefault);
   const procurementEmails = csvEmails(process.env.ALERT_MAIL_TO_PROCUREMENT || procurementDefault);
@@ -590,6 +674,7 @@ function stockMailSkipReasonMessage(reason) {
     no_alerts: "No stock-level alerts to email right now.",
     daily_limit: "Daily stock alert email already sent today.",
     cooldown: "Alerts are in cooldown; no email sent this run.",
+    in_flight: "Stock digest send already running.",
   };
   return map[reason] || reason;
 }
@@ -661,6 +746,129 @@ async function sendStockLevelEmailAlerts(opts = {}) {
   return { sent: toSend.length };
 }
 
+/** One scheduled email per day: company-level "no stock" digest for both recipients. */
+async function sendStockLevelEmailDigestForAllCompanies() {
+  if (stockAlertDigestInFlight) return { skipped: true, reason: "in_flight" };
+  if (!STOCK_ALERT_MAIL_ENABLED) return { skipped: true, reason: "mail_disabled" };
+
+  const today = formatLocalYYYYMMDD();
+  if (globalStockAlertDigestDate === today) return { skipped: true, reason: "daily_limit" };
+
+  const transporter = getSmtpTransporter();
+  const recipients = getStockAlertRecipients();
+  if (!transporter) return { skipped: true, reason: "smtp_not_configured" };
+  if (recipients.length === 0) return { skipped: true, reason: "no_recipients" };
+
+  stockAlertDigestInFlight = true;
+  const previousCompany = activeCompanyId;
+  try {
+    let allCompaniesAlreadySent = true;
+    const companyStates = [];
+    const companyTitle = {
+      trust_general: "Trust General",
+      trust_factory: "Trust Fabrication",
+    };
+
+    for (const companyId of COMPANY_IDS) {
+      bindCompanyData(companyId);
+      if (stockAlertEmailLastDailyDate !== today) allCompaniesAlreadySent = false;
+      companyStates.push({
+        companyId,
+        name: companyTitle[companyId] || companyId,
+        hasStock: Array.isArray(stockAvailability) && stockAvailability.length > 0,
+      });
+    }
+    if (allCompaniesAlreadySent) {
+      globalStockAlertDigestDate = today;
+      bindCompanyData(previousCompany);
+      return { skipped: true, reason: "daily_limit" };
+    }
+
+    const noStockCompanies = companyStates.filter((c) => !c.hasStock).map((c) => c.name);
+    if (noStockCompanies.length === 0) {
+      bindCompanyData(previousCompany);
+      return { skipped: true, reason: "no_alerts" };
+    }
+
+    const listForSentence = (names) => {
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} and ${names[1]}`;
+      return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+    };
+    const stockOk = companyStates.filter((c) => c.hasStock).map((c) => c.name);
+    const noStockText = listForSentence(noStockCompanies);
+    const hasHave = noStockCompanies.length > 1 ? "have" : "has";
+    const subject = `URGENT Stock Alert — ${noStockText} ${hasHave} no stock`;
+    const dashboardUrl = `http://localhost:${PORT}/alerts`;
+    const when = new Date().toISOString();
+    const subtitle = `<p style="margin:10px 0 0;font-size:13px;color:rgba(255,255,255,0.95);"><span style="display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:999px;font-weight:700;letter-spacing:0.04em;">URGENT</span> <span style="margin-left:8px;">Company stock status digest</span></p>`;
+    const body = `
+<h2 style="margin:0 0 14px;font-size:18px;font-weight:700;color:#0f172a;">No-stock alert</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;background:#fef2f2;border-radius:10px;border:1px solid #dc2626;border-left-width:5px;border-left-color:#dc2626;">
+<tr><td style="padding:14px 16px;">
+<p style="margin:0;font-size:15px;color:#7f1d1d;font-weight:700;">${escapeHtml(noStockText)} ${escapeHtml(hasHave)} no stock.</p>
+</td></tr>
+</table>
+${stockOk.length ? `<p style="margin:0 0 10px;font-size:14px;color:#334155;"><strong>In stock:</strong> ${escapeHtml(listForSentence(stockOk))}.</p>` : ""}
+<p style="margin:0;font-size:13px;color:#475569;">Please replenish stock for the listed company workspace(s).</p>`;
+    const text = [
+      subject,
+      "",
+      `${noStockText} ${hasHave} no stock.`,
+      stockOk.length ? `In stock: ${listForSentence(stockOk)}.` : "",
+      `Open alerts: ${dashboardUrl}`,
+      `Generated at: ${when}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const html = stockAlertEmailShell({
+      title: "Stock level alert",
+      accent: "#b91c1c",
+      subtitleHtml: subtitle,
+      bodyHtml: body,
+      footerLines: [`Dashboard: ${dashboardUrl}`, `Generated at: ${when}`],
+    });
+
+    await transporter.sendMail({
+      from: SMTP_FROM,
+      to: recipients.join(","),
+      subject,
+      text,
+      html,
+    });
+
+    globalStockAlertDigestDate = today;
+    const now = Date.now();
+    for (const companyId of COMPANY_IDS) {
+      bindCompanyData(companyId);
+      stockAlertEmailLastDailyDate = today;
+      if (!stockAvailability.length) stockAlertEmailLastSentAt.set(`digest:no_stock:${companyId}`, now);
+      persistData();
+    }
+    bindCompanyData(previousCompany);
+    return { sent: 1, companiesNoStock: noStockCompanies };
+  } finally {
+    stockAlertDigestInFlight = false;
+  }
+}
+
+/** After restart the same calendar day, avoid sending a second digest if all workspaces already got today's marker. */
+function hydrateGlobalStockAlertDigestDateFromCompanies() {
+  try {
+    const today = formatLocalYYYYMMDD();
+    const previousCompany = activeCompanyId;
+    let allToday = COMPANY_IDS.length > 0;
+    for (const companyId of COMPANY_IDS) {
+      bindCompanyData(companyId);
+      if (stockAlertEmailLastDailyDate !== today) allToday = false;
+    }
+    bindCompanyData(previousCompany);
+    if (allToday) globalStockAlertDigestDate = today;
+  } catch {
+    /* ignore */
+  }
+}
+
 const ALLOWED_ENTITY_TYPES = new Set(["stock", "sold", "equipment", "client", "project"]);
 
 const uploadStorage = multer.diskStorage({
@@ -702,10 +910,13 @@ function buildFilesFolder(entityType, entityId) {
 }
 
 function getCanEditForRole(role) {
-  if (role === "manager") return true;
-  if (role === "admin") return false;
-  if (role === "account") return true; // accounts have full access
-  return Boolean(roleEditAccess[String(role || "").trim().toLowerCase()]);
+  const r = String(role || "").trim().toLowerCase();
+  if (r === "manager") return true;
+  if (r === "admin") return false;
+  if (r === "account") return true;
+  const acc = roleEditAccess;
+  if (!acc || typeof acc !== "object" || Array.isArray(acc)) return false;
+  return Boolean(acc[r]);
 }
 
 function normalizeDepartmentKey(key) {
@@ -773,12 +984,38 @@ function verifyAuthToken(token) {
   }
 }
 
+const ACCOUNT_DEACTIVATED_MSG =
+  "This account has been deactivated. A manager must reactivate it before you can use the system.";
+
+/** Any API request that sends a valid Bearer token for a deactivated user is rejected (stale JWT after toggle off). */
+function rejectInactiveBearerUser(req, res, next) {
+  const p = req.path || "";
+  if (!p.startsWith("/api")) return next();
+  if (p === "/api/health" || p === "/api/auth/login") return next();
+  const auth = String(req.headers.authorization || "");
+  const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : null;
+  if (!token) return next();
+  const decoded = verifyAuthToken(token);
+  if (!decoded || !decoded.username) return next();
+  const record = findUserRecord(String(decoded.username).trim().toLowerCase());
+  if (record && record.active === false) {
+    return res.status(401).json({ success: false, message: ACCOUNT_DEACTIVATED_MSG });
+  }
+  next();
+}
+
+app.use(rejectInactiveBearerUser);
+
 function requireManager(req, res, next) {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
   const decoded = verifyAuthToken(token);
   if (!decoded || decoded.role !== "manager") {
     return res.status(403).json({ success: false, message: "Forbidden." });
+  }
+  const record = findUserRecord(String(decoded.username || "").trim().toLowerCase());
+  if (record && record.active === false) {
+    return res.status(401).json({ success: false, message: ACCOUNT_DEACTIVATED_MSG });
   }
   req.user = decoded;
   next();
@@ -790,6 +1027,10 @@ function requireCanEdit(req, res, next) {
   const decoded = verifyAuthToken(token);
   if (!decoded) {
     return res.status(401).json({ success: false, message: "Unauthorized." });
+  }
+  const record = findUserRecord(String(decoded.username || "").trim().toLowerCase());
+  if (record && record.active === false) {
+    return res.status(401).json({ success: false, message: ACCOUNT_DEACTIVATED_MSG });
   }
   if (!getCanEditForRole(decoded.role)) {
     return res.status(403).json({ success: false, message: "Edit permission required." });
@@ -804,6 +1045,10 @@ function requireAuth(req, res, next) {
   const decoded = verifyAuthToken(token);
   if (!decoded) {
     return res.status(401).json({ success: false, message: "Unauthorized." });
+  }
+  const record = findUserRecord(String(decoded.username || "").trim().toLowerCase());
+  if (record && record.active === false) {
+    return res.status(401).json({ success: false, message: ACCOUNT_DEACTIVATED_MSG });
   }
   req.user = decoded;
   next();
@@ -867,55 +1112,79 @@ function equipmentFields(body, existing = {}) {
 }
 
 app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body || {};
-  const emailTrim = String(email || "").trim().toLowerCase();
-  const passwordVal = String(password || "");
+  try {
+    const { email, password } = req.body || {};
+    const emailTrim = String(email || "").trim().toLowerCase();
+    const passwordVal = String(password || "");
 
-  if (!emailTrim || !passwordVal) {
-    return res.status(400).json({
+    if (!emailTrim || !passwordVal) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    const byEmail = usersPersisted.find((u) => String(u.username || "").trim().toLowerCase() === emailTrim);
+    if (byEmail && String(byEmail.password || "") === passwordVal && byEmail.active === false) {
+      return res.status(403).json({
+        success: false,
+        message: ACCOUNT_DEACTIVATED_MSG,
+      });
+    }
+
+    const user = usersPersisted.find(
+      (u) =>
+        String(u.username || "").trim().toLowerCase() === emailTrim &&
+        String(u.password || "") === passwordVal &&
+        u.active !== false
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email, password, or role.",
+      });
+    }
+
+    const role = String(user.role || "").toLowerCase();
+    const canEdit = getCanEditForRole(role);
+    const token = signAuthToken({
+      username: user.username,
+      role,
+      displayName: user.displayName || role,
+    });
+
+    res.json({
+      success: true,
+      role,
+      displayName: user.displayName || role,
+      canEdit,
+      token,
+    });
+
+    // Never block login on activity log / persistence failures.
+    setImmediate(() => {
+      try {
+        logActivity(
+          { username: user.username, role, displayName: user.displayName || role },
+          { section: "Auth", action: "Login", details: "User logged in." }
+        );
+      } catch (e) {
+        console.error("[auth/login] logActivity failed (non-fatal):", e?.message || e);
+      }
+    });
+  } catch (e) {
+    console.error("[auth/login]", e?.stack || e?.message || e);
+    res.status(500).json({
       success: false,
-      message: "Email and password are required.",
+      message: "Login failed due to a server error.",
     });
   }
-
-  const user = USERS.find(
-    (u) =>
-      String(u.username || "").trim().toLowerCase() === emailTrim &&
-      String(u.password || "") === passwordVal
-  );
-
-  if (!user) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid email, password, or role.",
-    });
-  }
-
-  const role = String(user.role || "").toLowerCase();
-  const canEdit = getCanEditForRole(role);
-  const token = signAuthToken({
-    username: user.username,
-    role,
-    displayName: user.displayName || role,
-  });
-
-  logActivity(
-    { username: user.username, role, displayName: user.displayName || role },
-    { section: "Auth", action: "Login", details: "User logged in." }
-  );
-
-  res.json({
-    success: true,
-    role,
-    displayName: user.displayName || role,
-    canEdit,
-    token,
-  });
 });
 
 app.get("/api/auth/me", requireAuth, (req, res) => {
   const username = String(req.user?.username || "").trim().toLowerCase();
-  const user = USERS.find((u) => String(u.username || "").trim().toLowerCase() === username);
+  const user = findUserRecord(username);
   if (!user) {
     return res.status(404).json({ success: false, message: "User not found." });
   }
@@ -930,28 +1199,127 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 });
 
 app.post("/api/auth/change-password", requireAuth, (req, res) => {
-  const { newPassword } = req.body || {};
-  const nextPassword = String(newPassword || "");
-  if (!nextPassword || nextPassword.length < 6) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Self-service password reset is disabled. Ask a manager to reset your password in Manage permissions → User accounts.",
+  });
+});
+
+const ASSIGNABLE_USER_ROLES = new Set(["admin", "technician", "account"]);
+const ALL_USER_ROLES = new Set(["admin", "manager", "technician", "account"]);
+
+app.get("/api/users", requireManager, (_req, res) => {
+  res.json({
+    success: true,
+    users: usersPersisted.map((u) => userPublic(u)),
+  });
+});
+
+app.post("/api/users", requireManager, (req, res) => {
+  const body = req.body || {};
+  const username = String(body.username || "").trim().toLowerCase();
+  const password = String(body.password || "");
+  const role = String(body.role || "").trim().toLowerCase();
+  const displayName = String(body.displayName || "").trim() || role;
+
+  if (!username || !username.includes("@")) {
+    return res.status(400).json({ success: false, message: "A valid email-style username is required." });
+  }
+  if (!ASSIGNABLE_USER_ROLES.has(role)) {
     return res.status(400).json({
       success: false,
-      message: "New password must be at least 6 characters.",
+      message: "New users may only be assigned roles: admin, technician, or account.",
     });
   }
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+  }
+  if (findUserRecord(username)) {
+    return res.status(409).json({ success: false, message: "A user with this username already exists." });
+  }
 
-  const username = String(req.user?.username || "").trim().toLowerCase();
-  const user = USERS.find((u) => String(u.username || "").trim().toLowerCase() === username);
-  if (!user) {
+  const row = { username, password, role, displayName, active: true };
+  usersPersisted.push(row);
+  logActivity(req.user, {
+    section: "Users",
+    action: "Created user",
+    details: `username=${username}, role=${role}`,
+  });
+  res.json({ success: true, user: userPublic(row) });
+});
+
+app.patch("/api/users/:username", requireManager, (req, res) => {
+  const targetKey = String(req.params.username || "").trim().toLowerCase();
+  const target = findUserRecord(targetKey);
+  if (!target) {
     return res.status(404).json({ success: false, message: "User not found." });
   }
 
-  user.password = nextPassword;
+  const body = req.body || {};
+  const patch = {};
+
+  if (body.newPassword != null) {
+    const np = String(body.newPassword || "");
+    if (np.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+    }
+    patch.newPassword = np;
+  }
+  if (body.displayName != null) {
+    const dn = String(body.displayName || "").trim();
+    if (!dn) {
+      return res.status(400).json({ success: false, message: "Display name cannot be empty." });
+    }
+    patch.displayName = dn;
+  }
+  if (body.active != null) {
+    patch.active = Boolean(body.active);
+  }
+  if (body.role != null) {
+    const nr = String(body.role || "").trim().toLowerCase();
+    if (!ALL_USER_ROLES.has(nr)) {
+      return res.status(400).json({ success: false, message: "Invalid role." });
+    }
+    patch.role = nr;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return res.status(400).json({ success: false, message: "No valid fields to update." });
+  }
+
+  if (patch.active === false || patch.role != null) {
+    const simRole = patch.role != null ? patch.role : String(target.role || "").toLowerCase();
+    const simActive = patch.active === false ? false : patch.active === true ? true : target.active !== false;
+    if (simRole === "manager" && simActive === false && activeManagerCount(usersPersisted) <= 1) {
+      return res.status(400).json({ success: false, message: "Cannot deactivate the last active manager." });
+    }
+    if (wouldRemoveLastActiveManager(target, patch)) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one active manager account is required.",
+      });
+    }
+  }
+
+  if (patch.newPassword != null) target.password = patch.newPassword;
+  if (patch.displayName != null) target.displayName = patch.displayName;
+  if (patch.active != null) target.active = patch.active;
+  if (patch.role != null) target.role = patch.role;
+
+  const detailParts = [];
+  if (patch.newPassword != null) detailParts.push("password reset");
+  if (patch.displayName != null) detailParts.push(`displayName=${target.displayName}`);
+  if (patch.active != null) detailParts.push(`active=${target.active}`);
+  if (patch.role != null) detailParts.push(`role=${target.role}`);
+
   logActivity(req.user, {
-    section: "Auth",
-    action: "Changed password",
-    details: "User updated account password.",
+    section: "Users",
+    action: "Updated user",
+    details: `username=${target.username}; ${detailParts.join(", ")}`,
   });
-  res.json({ success: true, message: "Password updated successfully." });
+
+  res.json({ success: true, user: userPublic(target) });
 });
 
 app.get("/api/permissions", requireManager, (req, res) => {
@@ -2549,12 +2917,7 @@ function scheduleStockAlertEmailDailyLoop() {
   const mm = String(minute).padStart(2, "0");
   const tick = () => {
     (async () => {
-      const previousCompany = activeCompanyId;
-      for (const companyId of COMPANY_IDS) {
-        bindCompanyData(companyId);
-        await sendStockLevelEmailAlerts().catch(() => {});
-      }
-      bindCompanyData(previousCompany);
+      await sendStockLevelEmailDigestForAllCompanies().catch(() => {});
     })()
       .catch(() => {})
       .finally(() => {
@@ -2566,7 +2929,7 @@ function scheduleStockAlertEmailDailyLoop() {
   const nextMin = Math.max(1, Math.round(firstDelay / 60000));
   const tz = String(process.env.TZ || "").trim() || "(default UTC)";
   console.log(
-    `[env] Stock alert email: once per day at ${hh}:${mm} (server local time, TZ=${tz}). Next run in ~${nextMin} min [scheduler-v2].`
+    `[env] Stock alert email: one digest per day at ${hh}:${mm} (all workspaces, server local time, TZ=${tz}). Next run in ~${nextMin} min [scheduler-v3].`
   );
   setTimeout(tick, firstDelay);
 }
@@ -2587,6 +2950,8 @@ async function startServer() {
   } else if (!USE_LOCAL_DATA_FILE) {
     console.warn("[db] USE_LOCAL_DATA_FILE=false but MONGODB_URI is missing; data persistence disabled.");
   }
+
+  hydrateGlobalStockAlertDigestDateFromCompanies();
 
   app.listen(PORT, () => {
     console.log(`Inventory Control System API running at http://localhost:${PORT}`);
