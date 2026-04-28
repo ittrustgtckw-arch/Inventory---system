@@ -18,7 +18,12 @@ declare global {
 
 if (!window.__companyFetchPatched) {
   const nativeFetch = window.fetch.bind(window);
-  const apiBase = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+  // In dev, always use same-origin `/api` so Vite's proxy hits server/index.js (PORT in .env).
+  // Only production builds use VITE_API_URL (e.g. static site → Render API); a stray global
+  // VITE_API_URL=localhost:5555 would otherwise break local login.
+  const apiBase = import.meta.env.PROD
+    ? String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "")
+    : "";
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     const req = input instanceof Request ? input : null;
     let target: RequestInfo | URL = input;
@@ -32,6 +37,15 @@ if (!window.__companyFetchPatched) {
     return nativeFetch(target, { ...(init || {}), headers });
   };
   window.__companyFetchPatched = true;
+}
+
+// Start unregister immediately so a stale PWA SW is less likely to serve old JS before first paint.
+if (import.meta.env.DEV && "serviceWorker" in navigator) {
+  void navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((r) => {
+      void r.unregister();
+    });
+  });
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -49,10 +63,10 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   </React.StrictMode>
 );
 
-if ("serviceWorker" in navigator) {
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/service-worker.js").catch(() => {
-      // Keep app behavior unchanged if SW registration fails.
+      /* ignore */
     });
   });
 }

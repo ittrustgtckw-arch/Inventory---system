@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useNavigate, Navigate, useLocation } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useAuth, useCanEdit } from "../auth";
 import { useTranslation } from "react-i18next";
 import { getAuthToken } from "../utils/authToken";
@@ -10,6 +10,8 @@ import { getAllCompanyMeta, getSelectedCompanyId, setSelectedCompanyId, type Com
 interface LayoutProps {
   onLogout: () => void;
 }
+
+type UserAccountRow = { username: string; role: string; displayName: string; active: boolean };
 
 export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const navigate = useNavigate();
@@ -44,13 +46,22 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     displayName: string;
     canEdit: boolean;
   } | null>(null);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [selectedCompanyId, setSelectedCompanyIdState] = useState<CompanyId>(() => getSelectedCompanyId());
+  const [userAccounts, setUserAccounts] = useState<UserAccountRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
+  const [newUserUsername, setNewUserUsername] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserRole, setNewUserRole] = useState<"admin" | "technician" | "account">("technician");
+  const [newUserDisplayName, setNewUserDisplayName] = useState("");
+  const [addUserSaving, setAddUserSaving] = useState(false);
+  const [addUserError, setAddUserError] = useState("");
+  const [resettingFor, setResettingFor] = useState<string | null>(null);
+  const [resetPass, setResetPass] = useState("");
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [userRowError, setUserRowError] = useState("");
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const companyMenuRef = useRef<HTMLDivElement | null>(null);
@@ -78,35 +89,75 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     if (!authToken) return;
 
     setPermissionError("");
+    setUsersError("");
+    setAddUserError("");
+    setUserRowError("");
+    setResettingFor(null);
+    setResetPass("");
+    setResetConfirm("");
+    setResetError("");
     setPermissionLoading(true);
+    setUsersLoading(true);
 
-    fetch("/api/permissions", {
-      headers: { Authorization: `Bearer ${authToken}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data?.success) return;
-        if (data.permissions && typeof data.permissions === "object") {
-          const next: Record<string, boolean> = {};
-          Object.entries(data.permissions).forEach(([k, v]) => {
-            next[String(k)] = Boolean(v);
-          });
-          // ensure defaults exist
-          if (next.technician == null) next.technician = false;
-          if (next.account == null) next.account = false;
-          setPermissionsState(next);
-          return;
+    void (async () => {
+      try {
+        const [permRes, usersRes] = await Promise.all([
+          fetch("/api/permissions", { headers: { Authorization: `Bearer ${authToken}` } }),
+          fetch("/api/users", { headers: { Authorization: `Bearer ${authToken}` } }),
+        ]);
+        const permData = (await permRes.json().catch(() => null)) as { success?: boolean; message?: string; permissions?: unknown } | null;
+        const usersData = (await usersRes.json().catch(() => null)) as
+          | { success?: boolean; message?: string; users?: unknown }
+          | null;
+
+        if (permData?.success) {
+          if (permData.permissions && typeof permData.permissions === "object") {
+            const next: Record<string, boolean> = {};
+            Object.entries(permData.permissions).forEach(([k, v]) => {
+              next[String(k)] = Boolean(v);
+            });
+            if (next.technician == null) next.technician = false;
+            if (next.account == null) next.account = false;
+            setPermissionsState(next);
+          } else {
+            setPermissionsState({
+              technician: Boolean((permData as { technicianCanEdit?: boolean }).technicianCanEdit),
+              account: Boolean((permData as { accountCanEdit?: boolean }).accountCanEdit),
+            });
+          }
+        } else {
+          setPermissionError(
+            (permData && typeof permData.message === "string" && permData.message) ||
+              (!permRes.ok ? t("permission.permLoadHttp", { status: permRes.status }) : t("permission.permLoadFailed"))
+          );
         }
 
-        // backward compatible (older server response)
-        setPermissionsState({
-          technician: Boolean(data.technicianCanEdit),
-          account: Boolean(data.accountCanEdit),
-        });
-      })
-      .catch(() => setPermissionError("Failed to load current permissions."))
-      .finally(() => setPermissionLoading(false));
-  }, [permissionModalOpen, authToken]);
+        if (usersData?.success && Array.isArray(usersData.users)) {
+          setUserAccounts(usersData.users as UserAccountRow[]);
+          setUsersError("");
+        } else {
+          const apiMsg = usersData && typeof usersData.message === "string" ? usersData.message : "";
+          if (usersRes.status === 404) {
+            setUsersError(apiMsg || t("permission.userLoadNotFound"));
+          } else if (usersRes.status === 403) {
+            setUsersError(apiMsg || t("permission.userLoadForbidden"));
+          } else if (!usersRes.ok) {
+            setUsersError(apiMsg || t("permission.userLoadHttp", { status: usersRes.status }));
+          } else if (apiMsg) {
+            setUsersError(apiMsg);
+          } else {
+            setUsersError(t("permission.userLoadFailed"));
+          }
+        }
+      } catch {
+        setPermissionError(t("permission.permLoadFailed"));
+        setUsersError(t("permission.userLoadNetwork"));
+      } finally {
+        setPermissionLoading(false);
+        setUsersLoading(false);
+      }
+    })();
+  }, [permissionModalOpen, authToken, t]);
 
   useEffect(() => {
     if (!profileModalOpen) return;
@@ -280,45 +331,98 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!authToken) {
-      setPasswordError(t("errors.notLoggedIn"));
-      return;
+  const refreshUserList = async () => {
+    if (!authToken) return;
+    const r = await fetch("/api/users", { headers: { Authorization: `Bearer ${authToken}` } });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data?.success && Array.isArray(data.users)) {
+      setUserAccounts(data.users as UserAccountRow[]);
     }
-    setPasswordError("");
-    setPasswordSuccess("");
-    const next = String(newPassword || "");
-    const confirm = String(confirmPassword || "");
-    if (next.length < 6) {
-      setPasswordError("New password must be at least 6 characters.");
-      return;
-    }
-    if (next !== confirm) {
-      setPasswordError("Passwords do not match.");
-      return;
-    }
-    setPasswordSaving(true);
+  };
+
+  const handleAddUser = async () => {
+    if (!authToken) return;
+    setAddUserError("");
+    setAddUserSaving(true);
     try {
-      const res = await fetch("/api/auth/change-password", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ newPassword: next }),
+        body: JSON.stringify({
+          username: newUserUsername.trim().toLowerCase(),
+          password: newUserPassword,
+          role: newUserRole,
+          displayName: newUserDisplayName.trim() || undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.success) throw new Error(data?.message || "Failed to update password.");
-      setPasswordSuccess("Password updated successfully.");
-      setNewPassword("");
-      setConfirmPassword("");
-      setTimeout(() => {
-        setPasswordModalOpen(false);
-      }, 1200);
+      if (!res.ok || !data?.success) throw new Error(data?.message || t("permission.addUserFailed"));
+      setNewUserUsername("");
+      setNewUserPassword("");
+      setNewUserDisplayName("");
+      setNewUserRole("technician");
+      await refreshUserList();
     } catch (e) {
-      setPasswordError(e instanceof Error ? e.message : "Failed to update password.");
+      setAddUserError(e instanceof Error ? e.message : t("permission.addUserFailed"));
     } finally {
-      setPasswordSaving(false);
+      setAddUserSaving(false);
+    }
+  };
+
+  const patchUserAccount = async (username: string, body: Record<string, unknown>) => {
+    if (!authToken) throw new Error(t("errors.notLoggedIn"));
+    const res = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.success) throw new Error(data?.message || t("permission.updateUserFailed"));
+    if (data.user) {
+      setUserAccounts((prev) => prev.map((u) => (u.username === data.user.username ? { ...u, ...data.user } : u)));
+    } else {
+      await refreshUserList();
+    }
+  };
+
+  const handleToggleUserActive = async (username: string, nextActive: boolean) => {
+    setUserRowError("");
+    try {
+      await patchUserAccount(username, { active: nextActive });
+    } catch (e) {
+      setUserRowError(e instanceof Error ? e.message : t("permission.updateUserFailed"));
+    }
+  };
+
+  const handleSaveResetPassword = async () => {
+    if (!authToken || !resettingFor) return;
+    setResetError("");
+    const a = String(resetPass || "");
+    const b = String(resetConfirm || "");
+    if (a.length < 6) {
+      setResetError(t("permission.passwordMin6"));
+      return;
+    }
+    if (a !== b) {
+      setResetError(t("permission.passwordMismatch"));
+      return;
+    }
+    setResetSaving(true);
+    try {
+      await patchUserAccount(resettingFor, { newPassword: a });
+      setResettingFor(null);
+      setResetPass("");
+      setResetConfirm("");
+    } catch (e) {
+      setResetError(e instanceof Error ? e.message : t("permission.updateUserFailed"));
+    } finally {
+      setResetSaving(false);
     }
   };
 
@@ -499,73 +603,329 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       </div>
 
       {permissionModalOpen ? (
-        <div className="stock-delete-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="permission-modal-title">
-          <div className="stock-delete-modal">
-            <h3 id="permission-modal-title">{t("permission.title")}</h3>
-            <p>{t("permission.subtitle")}</p>
+        <div
+          className="stock-delete-modal-backdrop permission-manage-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="permission-modal-title"
+        >
+          <div className="stock-delete-modal permission-manage-modal">
+            <header className="permission-manage-hero">
+              <div className="permission-manage-hero-icon" aria-hidden>
+                <i className="bi bi-shield-lock-fill" />
+              </div>
+              <div className="permission-manage-hero-text">
+                <h3 id="permission-modal-title">{t("permission.title")}</h3>
+                <p className="permission-manage-hero-lead">{t("permission.subtitle")}</p>
+              </div>
+            </header>
 
-            {permissionError ? <div className="alert alert-danger">{permissionError}</div> : null}
-            {!permissionError && permissionSuccess ? <div className="alert alert-success">{permissionSuccess}</div> : null}
+            {permissionError ? <div className="alert alert-danger permission-manage-alert">{permissionError}</div> : null}
+            {!permissionError && permissionSuccess ? (
+              <div className="alert alert-success permission-manage-alert">{permissionSuccess}</div>
+            ) : null}
 
-            {permissionLoading ? (
-              <p className="text-muted">{t("common.loading")}</p>
-            ) : (
-              <div className="d-grid gap-2">
-                <div className="d-flex gap-2 align-items-center">
-                  <input
-                    className="form-control form-control-sm"
-                    placeholder={t("permission.addDepartmentPlaceholder")}
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
-                    disabled={permissionSaving}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={handleAddDepartment}
-                    disabled={permissionSaving}
-                    aria-label={t("common.save")}
-                    title={t("common.save")}
-                  >
-                    <i className="bi bi-plus-lg" />
-                  </button>
-                </div>
+            <div className="permission-manage-scroll">
+              <div className="row g-3 permission-manage-columns">
+                <div className="col-12 col-lg-5">
+                  <section className="permission-panel permission-panel--departments h-100">
+                    <div className="permission-panel-head">
+                      <span className="permission-panel-badge permission-panel-badge--teal">
+                        <i className="bi bi-diagram-3-fill me-1" aria-hidden />
+                        {t("permission.sectionDepartmentsTitle")}
+                      </span>
+                      <p className="permission-panel-lead">{t("permission.sectionDepartmentsLead")}</p>
+                    </div>
+                    <div className="permission-panel-body">
+                      {permissionLoading ? (
+                        <div className="permission-panel-skeleton text-muted">
+                          <span className="spinner-border spinner-border-sm me-2" role="status" />
+                          {t("common.loading")}
+                        </div>
+                      ) : (
+                        <div className="d-grid gap-2">
+                          <div className="permission-add-dept input-group input-group-sm">
+                            <input
+                              className="form-control"
+                              placeholder={t("permission.addDepartmentPlaceholder")}
+                              value={newDepartment}
+                              onChange={(e) => setNewDepartment(e.target.value)}
+                              disabled={permissionSaving}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-teal-gradient"
+                              onClick={handleAddDepartment}
+                              disabled={permissionSaving}
+                              aria-label={t("common.save")}
+                              title={t("common.save")}
+                            >
+                              <i className="bi bi-plus-lg" />
+                            </button>
+                          </div>
 
-                {Object.keys(permissionsState)
-                  .filter((k) => k !== "manager" && k !== "admin")
-                  .sort((a, b) => a.localeCompare(b))
-                  .map((k) => (
-                    <div key={k} className="d-flex align-items-center justify-content-between gap-2">
-                      <label className="d-flex align-items-center justify-content-between flex-grow-1">
-                        <span>{k.replace(/_/g, " ")} can edit</span>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(permissionsState[k])}
-                          onChange={(e) => setPermissionsState((p) => ({ ...p, [k]: e.target.checked }))}
-                          disabled={permissionSaving}
-                        />
-                      </label>
-                      {k === "technician" || k === "account" ? null : (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteDepartment(k)}
-                          disabled={permissionSaving}
-                          aria-label={`Delete ${k}`}
-                          title="Delete department"
-                        >
-                          <i className="bi bi-trash" />
-                        </button>
+                          {Object.keys(permissionsState)
+                            .filter((k) => k !== "manager" && k !== "admin")
+                            .sort((a, b) => a.localeCompare(b))
+                            .map((k) => (
+                              <div key={k} className="permission-dept-card">
+                                <label className="permission-dept-label">
+                                  <span className="permission-dept-name">{k.replace(/_/g, " ")}</span>
+                                  <span className="permission-dept-hint text-muted">{t("permission.canEditLabel")}</span>
+                                  <input
+                                    type="checkbox"
+                                    className="form-check-input permission-dept-check"
+                                    checked={Boolean(permissionsState[k])}
+                                    onChange={(e) => setPermissionsState((p) => ({ ...p, [k]: e.target.checked }))}
+                                    disabled={permissionSaving}
+                                  />
+                                </label>
+                                {k === "technician" || k === "account" ? null : (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger permission-dept-remove"
+                                    onClick={() => handleDeleteDepartment(k)}
+                                    disabled={permissionSaving}
+                                    aria-label={`Delete ${k}`}
+                                    title="Delete department"
+                                  >
+                                    <i className="bi bi-trash" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                        </div>
                       )}
                     </div>
-                  ))}
-              </div>
-            )}
+                  </section>
+                </div>
 
-            <div className="stock-delete-modal-actions">
+                <div className="col-12 col-lg-7">
+                  <section className="permission-panel permission-panel--users h-100">
+                    <div className="permission-panel-head">
+                      <span className="permission-panel-badge permission-panel-badge--violet">
+                        <i className="bi bi-people-fill me-1" aria-hidden />
+                        {t("permission.userAccountsTitle")}
+                      </span>
+                      <p className="permission-panel-sub">{t("permission.sectionUsersTitle")}</p>
+                      <p className="permission-panel-lead">{t("permission.userAccountsHint")}</p>
+                    </div>
+                    <div className="permission-panel-body">
+                      {usersError ? <div className="alert alert-danger small py-2">{usersError}</div> : null}
+                      {userRowError ? <div className="alert alert-danger small py-2">{userRowError}</div> : null}
+                      {usersLoading ? (
+                        <div className="permission-panel-skeleton text-muted">
+                          <span className="spinner-border spinner-border-sm me-2" role="status" />
+                          {t("common.loading")}
+                        </div>
+                      ) : (
+                        <div className="d-grid gap-3">
+                          <div className="permission-add-user-card">
+                            <div className="permission-add-user-title">
+                              <i className="bi bi-person-plus-fill me-2 permission-add-user-icon" aria-hidden />
+                              {t("permission.addUserSection")}
+                            </div>
+                            {addUserError ? <div className="alert alert-danger py-1 small mb-2">{addUserError}</div> : null}
+                            <div className="row g-2">
+                              <div className="col-12">
+                                <label className="form-label permission-field-label">{t("permission.username")}</label>
+                                <input
+                                  className="form-control form-control-sm"
+                                  placeholder={t("permission.username")}
+                                  value={newUserUsername}
+                                  onChange={(e) => setNewUserUsername(e.target.value)}
+                                  disabled={addUserSaving || permissionSaving}
+                                  autoComplete="off"
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label permission-field-label">{t("permission.password")}</label>
+                                <input
+                                  className="form-control form-control-sm"
+                                  placeholder={t("permission.password")}
+                                  type="password"
+                                  value={newUserPassword}
+                                  onChange={(e) => setNewUserPassword(e.target.value)}
+                                  disabled={addUserSaving || permissionSaving}
+                                  autoComplete="new-password"
+                                />
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label permission-field-label">{t("permission.displayName")}</label>
+                                <input
+                                  className="form-control form-control-sm"
+                                  placeholder={t("permission.displayName")}
+                                  value={newUserDisplayName}
+                                  onChange={(e) => setNewUserDisplayName(e.target.value)}
+                                  disabled={addUserSaving || permissionSaving}
+                                />
+                              </div>
+                              <div className="col-12">
+                                <div className="permission-add-user-footer">
+                                  <div className="permission-add-user-footer-role">
+                                    <label className="form-label permission-field-label">{t("permission.role")}</label>
+                                    <select
+                                      className="form-select form-select-sm"
+                                      value={newUserRole}
+                                      onChange={(e) => setNewUserRole(e.target.value as "admin" | "technician" | "account")}
+                                      disabled={addUserSaving || permissionSaving}
+                                    >
+                                      <option value="technician">technician</option>
+                                      <option value="account">account</option>
+                                      <option value="admin">admin</option>
+                                    </select>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-violet-gradient"
+                                    onClick={() => void handleAddUser()}
+                                    disabled={
+                                      addUserSaving ||
+                                      permissionSaving ||
+                                      !newUserUsername.trim() ||
+                                      newUserPassword.length < 6
+                                    }
+                                  >
+                                    {addUserSaving ? t("common.loading") : t("permission.addUser")}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="table-responsive permission-users-table-wrap">
+                            <table className="table table-sm align-middle mb-0 permission-users-table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">{t("permission.colUsername")}</th>
+                                  <th scope="col">{t("permission.colName")}</th>
+                                  <th scope="col">{t("permission.colRole")}</th>
+                                  <th scope="col" className="text-center">
+                                    {t("permission.colActive")}
+                                  </th>
+                                  <th scope="col">{t("permission.colActions")}</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {userAccounts.map((u) => (
+                                  <Fragment key={u.username}>
+                                    <tr
+                                      className={`permission-user-data-row${u.active ? "" : " permission-user-row-inactive"}`}
+                                    >
+                                      <td className="small text-break fw-semibold text-body">{u.username}</td>
+                                      <td className="small">{u.displayName}</td>
+                                      <td>
+                                        <span className="permission-role-pill">{u.role}</span>
+                                      </td>
+                                      <td className="text-center">
+                                        <div className="form-check form-switch d-inline-flex justify-content-center">
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            role="switch"
+                                            checked={u.active}
+                                            onChange={(e) => void handleToggleUserActive(u.username, e.target.checked)}
+                                            disabled={permissionSaving}
+                                            aria-label={t("permission.active")}
+                                          />
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-outline-primary permission-reset-btn"
+                                          onClick={() => {
+                                            setResetError("");
+                                            setResetPass("");
+                                            setResetConfirm("");
+                                            setResettingFor((cur) => (cur === u.username ? null : u.username));
+                                          }}
+                                          disabled={permissionSaving}
+                                        >
+                                          <i className="bi bi-key-fill me-1" aria-hidden />
+                                          {t("permission.resetPassword")}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                    {resettingFor === u.username ? (
+                                      <tr className="permission-reset-row">
+                                        <td colSpan={5}>
+                                          {resetError ? <div className="alert alert-danger py-1 small mb-2">{resetError}</div> : null}
+                                          <div className="permission-reset-inner">
+                                            <div className="row g-2">
+                                              <div className="col-12 col-md-6">
+                                                <label className="form-label permission-field-label mb-0">
+                                                  {t("permission.resetPasswordHint")}
+                                                </label>
+                                                <input
+                                                  type="password"
+                                                  className="form-control form-control-sm"
+                                                  value={resetPass}
+                                                  onChange={(e) => setResetPass(e.target.value)}
+                                                  disabled={resetSaving}
+                                                  autoComplete="new-password"
+                                                />
+                                              </div>
+                                              <div className="col-12 col-md-6">
+                                                <label className="form-label permission-field-label mb-0">
+                                                  {t("permission.confirmPassword")}
+                                                </label>
+                                                <input
+                                                  type="password"
+                                                  className="form-control form-control-sm"
+                                                  value={resetConfirm}
+                                                  onChange={(e) => setResetConfirm(e.target.value)}
+                                                  disabled={resetSaving}
+                                                  autoComplete="new-password"
+                                                />
+                                              </div>
+                                              <div className="col-12">
+                                                <div className="permission-reset-actions">
+                                                  <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-primary"
+                                                    onClick={() => void handleSaveResetPassword()}
+                                                    disabled={resetSaving}
+                                                  >
+                                                    {t("permission.applyPassword")}
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => {
+                                                      setResettingFor(null);
+                                                      setResetPass("");
+                                                      setResetConfirm("");
+                                                      setResetError("");
+                                                    }}
+                                                    disabled={resetSaving}
+                                                  >
+                                                    {t("permission.cancelPassword")}
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ) : null}
+                                  </Fragment>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </div>
+
+            <footer className="permission-manage-footer">
               <button
                 type="button"
-                className="stock-action-btn stock-cancel-btn"
+                className="btn btn-outline-secondary"
                 onClick={() => setPermissionModalOpen(false)}
                 disabled={permissionSaving}
               >
@@ -573,13 +933,14 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
               </button>
               <button
                 type="button"
-                className="stock-action-btn stock-delete-btn"
+                className="btn btn-save-permissions"
                 onClick={handleSavePermissions}
                 disabled={permissionSaving || permissionLoading}
               >
+                <i className="bi bi-check2-circle me-1" aria-hidden />
                 {t("common.save")}
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       ) : null}
@@ -626,75 +987,6 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
                 onClick={() => setProfileModalOpen(false)}
               >
                 {t("common.close")}
-              </button>
-              <button
-                type="button"
-                className="stock-action-btn stock-delete-btn"
-                onClick={() => {
-                  setPasswordError("");
-                  setPasswordSuccess("");
-                  setPasswordModalOpen(true);
-                }}
-              >
-                {t("profile.forgotPassword")}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {passwordModalOpen ? (
-        <div className="stock-delete-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
-          <div className="stock-delete-modal profile-password-modal">
-            <div className="password-modal-hero">
-              <div className="password-modal-hero-icon" aria-hidden>
-                <i className="bi bi-shield-lock" />
-              </div>
-              <div>
-                <h3 id="password-modal-title">{t("password.title")}</h3>
-                <p>{t("password.subtitle")}</p>
-              </div>
-            </div>
-            {passwordError ? <div className="alert alert-danger">{passwordError}</div> : null}
-            {!passwordError && passwordSuccess ? <div className="alert alert-success">{passwordSuccess}</div> : null}
-            <div className="d-grid gap-2 password-form-grid">
-              <label className="password-field">
-                <span className="password-field-label">{t("password.newPassword")}</span>
-                <input
-                  className="form-control form-control-sm password-field-input"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={passwordSaving}
-                />
-              </label>
-              <label className="password-field">
-                <span className="password-field-label">{t("password.confirmPassword")}</span>
-                <input
-                  className="form-control form-control-sm password-field-input"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={passwordSaving}
-                />
-              </label>
-            </div>
-            <div className="stock-delete-modal-actions">
-              <button
-                type="button"
-                className="stock-action-btn stock-cancel-btn password-cancel-btn"
-                onClick={() => setPasswordModalOpen(false)}
-                disabled={passwordSaving}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="stock-action-btn stock-delete-btn password-save-btn"
-                onClick={handleChangePassword}
-                disabled={passwordSaving}
-              >
-                {passwordSaving ? t("password.saving") : t("password.updatePassword")}
               </button>
             </div>
           </div>

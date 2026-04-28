@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "vite",
-    "dev:all": "concurrently -n api,vite -c cyan,magenta \"node server/index.js\" \"vite\"",
+    "dev:all": "concurrently -n api,vite -c cyan,magenta \"node server/index.js\" \"node scripts/wait-api-health.js && vite\"",
+    "test:api-users": "node scripts/smoke-api-users.js",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
