@@ -1010,7 +1010,10 @@ function requireManager(req, res, next) {
   const auth = String(req.headers.authorization || "");
   const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : null;
   const decoded = verifyAuthToken(token);
-  if (!decoded || decoded.role !== "manager") {
+  if (!decoded) {
+    return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
+  }
+  if (decoded.role !== "manager") {
     return res.status(403).json({ success: false, message: "Forbidden." });
   }
   const record = findUserRecord(String(decoded.username || "").trim().toLowerCase());

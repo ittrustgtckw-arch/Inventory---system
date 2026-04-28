@@ -112,6 +112,12 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
           | { success?: boolean; message?: string; users?: unknown }
           | null;
 
+        if (permRes.status === 401 || usersRes.status === 401) {
+          setPermissionError(t("profile.sessionExpired"));
+          setUsersError(t("profile.sessionExpired"));
+          return;
+        }
+
         if (permData?.success) {
           if (permData.permissions && typeof permData.permissions === "object") {
             const next: Record<string, boolean> = {};
@@ -128,10 +134,19 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
             });
           }
         } else {
+          const pMsg = permData && typeof permData.message === "string" ? permData.message : "";
+          if (permRes.status === 403) {
+            setPermissionError(pMsg || t("permission.userLoadForbidden"));
+          } else if (permRes.status === 404) {
+            setPermissionError(pMsg || t("permission.userLoadNotFound"));
+          } else if (!permRes.ok) {
+            setPermissionError(pMsg || t("permission.permLoadHttp", { status: permRes.status }));
+          } else {
           setPermissionError(
             (permData && typeof permData.message === "string" && permData.message) ||
               (!permRes.ok ? t("permission.permLoadHttp", { status: permRes.status }) : t("permission.permLoadFailed"))
           );
+          }
         }
 
         if (usersData?.success && Array.isArray(usersData.users)) {
