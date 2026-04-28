@@ -297,6 +297,9 @@ function bindCompanyData(companyId) {
 }
 
 function hydrateStoreFromData(data) {
+  if (data && typeof data.stockAlertMailEnabled === "boolean") {
+    stockAlertMailEnabled = Boolean(data.stockAlertMailEnabled);
+  }
   if (data && data.companies && typeof data.companies === "object") {
     companyStore = Object.create(null);
     COMPANY_IDS.forEach((companyId) => {
@@ -383,6 +386,7 @@ function extractPersistableState() {
     version: 2,
     companies: companyStore,
     users: usersPersisted,
+    stockAlertMailEnabled,
   };
 }
 
@@ -442,7 +446,7 @@ const SMTP_USER = String(process.env.SMTP_USER || "").trim();
 const SMTP_PASS = String(process.env.SMTP_PASS || "").trim();
 const SMTP_FROM = String(process.env.SMTP_FROM || SMTP_USER || "").trim();
 const STOCK_ALERT_MAIL_COOLDOWN_MIN = Math.max(5, Number.parseInt(String(process.env.STOCK_ALERT_MAIL_COOLDOWN_MIN || "180"), 10) || 180);
-const STOCK_ALERT_MAIL_ENABLED = String(process.env.STOCK_ALERT_MAIL_ENABLED || "true").trim().toLowerCase() !== "false";
+let stockAlertMailEnabled = String(process.env.STOCK_ALERT_MAIL_ENABLED || "true").trim().toLowerCase() !== "false";
 
 function formatLocalYYYYMMDD(d = new Date()) {
   const y = d.getFullYear();
@@ -720,7 +724,7 @@ async function sendStockLevelEmailAlerts(opts = {}) {
     return { sent: 1, test: true };
   }
 
-  if (!STOCK_ALERT_MAIL_ENABLED) return { skipped: true, reason: "mail_disabled" };
+  if (!stockAlertMailEnabled) return { skipped: true, reason: "mail_disabled" };
   const transporter = getSmtpTransporter();
   const recipients = getStockAlertRecipients();
   if (!transporter) return { skipped: true, reason: "smtp_not_configured" };
@@ -770,7 +774,7 @@ async function sendStockLevelEmailAlerts(opts = {}) {
 /** One scheduled email per day: company-level "no stock" digest for both recipients. */
 async function sendStockLevelEmailDigestForAllCompanies() {
   if (stockAlertDigestInFlight) return { skipped: true, reason: "in_flight" };
-  if (!STOCK_ALERT_MAIL_ENABLED) return { skipped: true, reason: "mail_disabled" };
+  if (!stockAlertMailEnabled) return { skipped: true, reason: "mail_disabled" };
 
   const today = formatLocalYYYYMMDD();
   if (globalStockAlertDigestDate === today) return { skipped: true, reason: "daily_limit" };
@@ -2912,6 +2916,33 @@ app.get("/api/search", (req, res) => {
   res.json({ query: qRaw, results });
 });
 
+app.get("/api/alerts/stock-email/settings", requireManager, (_req, res) => {
+  res.json({ success: true, enabled: Boolean(stockAlertMailEnabled) });
+});
+
+app.post("/api/alerts/stock-email/settings", requireManager, (req, res) => {
+  const next = req.body && typeof req.body.enabled === "boolean" ? Boolean(req.body.enabled) : null;
+  if (next == null) {
+    return res.status(400).json({ success: false, message: "enabled(boolean) is required." });
+  }
+  stockAlertMailEnabled = next;
+  persistData();
+  try {
+    logActivity(req.user, {
+      section: "Alerts",
+      action: "Stock alert mail setting",
+      details: `stockAlertMailEnabled=${stockAlertMailEnabled ? "on" : "off"}`,
+    });
+  } catch {
+    /* ignore non-fatal logging errors */
+  }
+  return res.json({
+    success: true,
+    enabled: stockAlertMailEnabled,
+    message: stockAlertMailEnabled ? "Stock alert email activated." : "Stock alert email deactivated.",
+  });
+});
+
 app.post("/api/alerts/stock-email/test", requireManager, async (_req, res) => {
   try {
     const result = await sendStockLevelEmailAlerts({ forTest: true });
@@ -2939,7 +2970,6 @@ app.post("/api/alerts/stock-email/test", requireManager, async (_req, res) => {
 });
 
 function scheduleStockAlertEmailDailyLoop() {
-  if (!STOCK_ALERT_MAIL_ENABLED) return;
   const { hour, minute } = parseStockAlertDailyAt(process.env.STOCK_ALERT_MAIL_DAILY_AT);
   const hh = String(hour).padStart(2, "0");
   const mm = String(minute).padStart(2, "0");
@@ -2957,7 +2987,7 @@ function scheduleStockAlertEmailDailyLoop() {
   const nextMin = Math.max(1, Math.round(firstDelay / 60000));
   const tz = String(process.env.TZ || "").trim() || "(default UTC)";
   console.log(
-    `[env] Stock alert email: one digest per day at ${hh}:${mm} (all workspaces, server local time, TZ=${tz}). Next run in ~${nextMin} min [scheduler-v3].`
+    `[env] Stock alert email: ${stockAlertMailEnabled ? "ON" : "OFF"}; one digest per day at ${hh}:${mm} (all workspaces, server local time, TZ=${tz}). Next run in ~${nextMin} min [scheduler-v3].`
   );
   setTimeout(tick, firstDelay);
 }

@@ -79,6 +79,10 @@ export const Alerts: React.FC = () => {
   const [stockMailTestLoading, setStockMailTestLoading] = useState(false);
   const [stockMailTestMessage, setStockMailTestMessage] = useState<"" | "ok" | "err" | "forbidden">("");
   const [stockMailTestDetail, setStockMailTestDetail] = useState("");
+  const [stockMailEnabled, setStockMailEnabled] = useState(true);
+  const [stockMailSettingsLoading, setStockMailSettingsLoading] = useState(false);
+  const [stockMailToggleMessage, setStockMailToggleMessage] = useState("");
+  const [stockMailToggleState, setStockMailToggleState] = useState<"" | "ok" | "err">("");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -90,6 +94,22 @@ export const Alerts: React.FC = () => {
       .catch(() => setAlerts([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (role !== "manager") return;
+    const token = getAuthToken();
+    if (!token) return;
+    setStockMailSettingsLoading(true);
+    fetch("/api/alerts/stock-email/settings", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data?.success) return;
+        setStockMailEnabled(Boolean(data.enabled));
+      })
+      .finally(() => setStockMailSettingsLoading(false));
+  }, [role]);
 
   const filteredSorted = useMemo(() => {
     const q = safeLower(query).trim();
@@ -185,6 +205,49 @@ export const Alerts: React.FC = () => {
     }
   };
 
+  const toggleStockMailEnabled = async () => {
+    if (role !== "manager") return;
+    const token = getAuthToken();
+    if (!token) return;
+    setStockMailToggleMessage("");
+    setStockMailToggleState("");
+    setStockMailSettingsLoading(true);
+    const next = !stockMailEnabled;
+    try {
+      const res = await fetch("/api/alerts/stock-email/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        if (res.status === 404) {
+          setStockMailToggleMessage("Server is missing stock alert settings API. Deploy latest backend.");
+        } else if (res.status === 401) {
+          setStockMailToggleMessage("Session expired. Please log in again.");
+        } else if (res.status === 403) {
+          setStockMailToggleMessage("Manager access required.");
+        } else {
+          const apiMsg = typeof data?.message === "string" ? data.message : "";
+          setStockMailToggleMessage(apiMsg || `Could not update stock alert auto mail setting (HTTP ${res.status}).`);
+        }
+        setStockMailToggleState("err");
+        return;
+      }
+      setStockMailEnabled(Boolean(data.enabled));
+      setStockMailToggleMessage(Boolean(data.enabled) ? "Stock alert auto mail activated." : "Stock alert auto mail deactivated.");
+      setStockMailToggleState("ok");
+    } catch {
+      setStockMailToggleMessage("Could not update stock alert auto mail setting.");
+      setStockMailToggleState("err");
+    } finally {
+      setStockMailSettingsLoading(false);
+    }
+  };
+
   const handleExportExcel = () => {
     if (filteredSorted.length === 0) return;
     const rows = filteredSorted.map((a) => ({
@@ -211,9 +274,21 @@ export const Alerts: React.FC = () => {
           {role === "manager" ? (
             <button
               type="button"
+              className={`ghost-button stock-export-btn ${stockMailEnabled ? "btn-outline-success" : "btn-outline-secondary"}`}
+              onClick={() => void toggleStockMailEnabled()}
+              disabled={stockMailSettingsLoading}
+              title={stockMailEnabled ? "Deactivate auto stock alert mail" : "Activate auto stock alert mail"}
+            >
+              <i className={`bi ${stockMailEnabled ? "bi-toggle-on text-success" : "bi-toggle-off"} me-1`} />
+              {stockMailEnabled ? "Auto mail ON" : "Auto mail OFF"}
+            </button>
+          ) : null}
+          {role === "manager" ? (
+            <button
+              type="button"
               className="ghost-button stock-export-btn"
               onClick={() => void sendStockMailTest()}
-              disabled={stockMailTestLoading}
+              disabled={stockMailTestLoading || !stockMailEnabled}
               title={t("alertsPage.sendStockMailTest")}
             >
               <i className="bi bi-envelope-paper me-1" />
@@ -247,6 +322,14 @@ export const Alerts: React.FC = () => {
       {stockMailTestMessage === "forbidden" ? (
         <div className="alert alert-warning border-0 shadow-sm rounded-3 py-2 mb-3" role="alert">
           {t("alertsPage.sendStockMailForbidden")}
+        </div>
+      ) : null}
+      {stockMailToggleMessage ? (
+        <div
+          className={`alert ${stockMailToggleState === "err" ? "alert-danger" : "alert-success"} border-0 shadow-sm rounded-3 py-2 mb-3`}
+          role={stockMailToggleState === "err" ? "alert" : "status"}
+        >
+          {stockMailToggleMessage}
         </div>
       ) : null}
       {loading && <p className="text-muted">{t("common.loading")}</p>}
