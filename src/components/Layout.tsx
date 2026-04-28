@@ -62,6 +62,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const [resetSaving, setResetSaving] = useState(false);
   const [resetError, setResetError] = useState("");
   const [userRowError, setUserRowError] = useState("");
+  const [userRowSuccess, setUserRowSuccess] = useState("");
   const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const companyMenuRef = useRef<HTMLDivElement | null>(null);
@@ -92,6 +93,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     setUsersError("");
     setAddUserError("");
     setUserRowError("");
+    setUserRowSuccess("");
     setResettingFor(null);
     setResetPass("");
     setResetConfirm("");
@@ -393,8 +395,14 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
 
   const handleToggleUserActive = async (username: string, nextActive: boolean) => {
     setUserRowError("");
+    setUserRowSuccess("");
     try {
       await patchUserAccount(username, { active: nextActive });
+      setUserRowSuccess(
+        nextActive
+          ? t("permission.userActivated", { username })
+          : t("permission.userDeactivated", { username })
+      );
     } catch (e) {
       setUserRowError(e instanceof Error ? e.message : t("permission.updateUserFailed"));
     }
@@ -502,8 +510,8 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
             ) : null}
           </div>
           <div className="lang-switch-wrap">
-            <label className="lang-switch-label" htmlFor="lang-switch">
-              {t("common.language")}
+            <label className="lang-switch-label" htmlFor="lang-switch" aria-label={t("common.language")}>
+              <i className="bi bi-translate lang-switch-label-icon" aria-hidden />
             </label>
             <select
               id="lang-switch"
@@ -512,22 +520,28 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
               onChange={(e) => handleLanguageChange(e.target.value as "en" | "ar")}
               aria-label="Select language"
             >
-              <option value="en">{t("common.english")}</option>
-              <option value="ar">{t("common.arabic")}</option>
+              <option value="en">EN</option>
+              <option value="ar">AR</option>
             </select>
           </div>
-          <button className="ghost-button profile-trigger-btn" onClick={() => setProfileModalOpen(true)}>
+          <button className="ghost-button profile-trigger-btn top-action-btn top-action-profile" onClick={() => setProfileModalOpen(true)}>
             <span className="profile-trigger-avatar" aria-hidden>
               {((displayName || role || "U").slice(0, 1) || "U").toUpperCase()}
             </span>
             <span>{t("topbar.myProfile")}</span>
           </button>
           {role === "manager" ? (
-            <button className="ghost-button" onClick={() => setPermissionModalOpen(true)} disabled={permissionSaving}>
+            <button
+              className="ghost-button top-action-btn top-action-manage"
+              onClick={() => setPermissionModalOpen(true)}
+              disabled={permissionSaving}
+            >
+              <i className="bi bi-shield-lock-fill top-action-icon" aria-hidden />
               {t("topbar.managePermissions")}
             </button>
           ) : null}
-          <button className="ghost-button" onClick={handleLogout}>
+          <button className="ghost-button top-action-btn top-action-logout" onClick={handleLogout}>
+            <i className="bi bi-box-arrow-right top-action-icon" aria-hidden />
             {t("common.logout")}
           </button>
         </div>
@@ -616,7 +630,9 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
               </div>
               <div className="permission-manage-hero-text">
                 <h3 id="permission-modal-title">{t("permission.title")}</h3>
-                <p className="permission-manage-hero-lead">{t("permission.subtitle")}</p>
+                {String(t("permission.subtitle") || "").trim() ? (
+                  <p className="permission-manage-hero-lead">{t("permission.subtitle")}</p>
+                ) : null}
               </div>
             </header>
 
@@ -634,7 +650,9 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
                         <i className="bi bi-diagram-3-fill me-1" aria-hidden />
                         {t("permission.sectionDepartmentsTitle")}
                       </span>
-                      <p className="permission-panel-lead">{t("permission.sectionDepartmentsLead")}</p>
+                      {String(t("permission.sectionDepartmentsLead") || "").trim() ? (
+                        <p className="permission-panel-lead">{t("permission.sectionDepartmentsLead")}</p>
+                      ) : null}
                     </div>
                     <div className="permission-panel-body">
                       {permissionLoading ? (
@@ -708,11 +726,14 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
                         {t("permission.userAccountsTitle")}
                       </span>
                       <p className="permission-panel-sub">{t("permission.sectionUsersTitle")}</p>
-                      <p className="permission-panel-lead">{t("permission.userAccountsHint")}</p>
+                      {String(t("permission.userAccountsHint") || "").trim() ? (
+                        <p className="permission-panel-lead">{t("permission.userAccountsHint")}</p>
+                      ) : null}
                     </div>
                     <div className="permission-panel-body">
                       {usersError ? <div className="alert alert-danger small py-2">{usersError}</div> : null}
                       {userRowError ? <div className="alert alert-danger small py-2">{userRowError}</div> : null}
+                      {userRowSuccess ? <div className="alert alert-success small py-2">{userRowSuccess}</div> : null}
                       {usersLoading ? (
                         <div className="permission-panel-skeleton text-muted">
                           <span className="spinner-border spinner-border-sm me-2" role="status" />
