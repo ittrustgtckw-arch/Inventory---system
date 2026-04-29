@@ -56,6 +56,8 @@
   --table-row-alt: #f8fafc;
   --table-row-hover: rgba(14, 165, 233, 0.07);
   --global-font-scale: 1.03;
+  /* Must match .top-bar min-height; used for fixed side-nav + backdrop on small screens */
+  --app-topbar-height: 72px;
 }
 
 html {
@@ -116,19 +118,25 @@ a {
 
 .app-shell {
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .top-bar {
-  height: 72px;
+  min-height: var(--app-topbar-height);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
   padding: 0 1.75rem;
   background: linear-gradient(90deg, #0f172a, #1d2671, #5c2cd5);
   border-bottom: none;
   color: #f9fafb;
+  flex-shrink: 0;
 }
 
 .top-bar-left {
@@ -665,7 +673,8 @@ html[dir="rtl"] .brand {
 .main-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - var(--app-topbar-height));
+  min-width: 0;
 }
 
 .side-nav {
@@ -7938,8 +7947,8 @@ html[dir="rtl"] .login-form-topbar {
   text-overflow: ellipsis;
 }
 
-/* Mobile / tablet: slide-out nav (see .main-layout.mobile-nav-open) */
-@media (max-width: 991.98px) {
+/* Mobile / tablet / narrow desktop: slide-out nav (see .main-layout.mobile-nav-open) */
+@media (max-width: 1199.98px) {
   html {
     font-size: calc(15px * var(--global-font-scale));
   }
@@ -7958,6 +7967,55 @@ html[dir="rtl"] .login-form-topbar {
     line-height: 1;
   }
 
+  .top-bar-left,
+  .top-bar-right {
+    min-width: 0;
+  }
+
+  .topbar-company-trigger {
+    min-width: 0;
+    max-width: min(17rem, 42vw);
+    flex: 0 1 auto;
+  }
+
+  .topbar-company-trigger-name {
+    max-width: min(9.5rem, 28vw);
+  }
+
+  /* Long titles still clip without stealing space from actions */
+  .top-action-btn,
+  .profile-trigger-btn {
+    position: relative;
+    flex-shrink: 0;
+    touch-action: manipulation;
+  }
+
+  .top-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .mobile-nav-toggle {
+    touch-action: manipulation;
+  }
+
+  .stock-delete-modal-backdrop .stock-delete-modal.permission-manage-modal {
+    width: min(1680px, calc(100vw - 0.75rem));
+    max-width: calc(100vw - 0.75rem);
+  }
+
+  .permission-manage-scroll,
+  .permission-users-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
   .main-layout {
     grid-template-columns: 1fr;
     position: relative;
@@ -7967,7 +8025,7 @@ html[dir="rtl"] .login-form-topbar {
   .mobile-nav-backdrop {
     display: none;
     position: fixed;
-    inset: 64px 0 0 0;
+    inset: var(--app-topbar-height) 0 0 0;
     z-index: 1030;
     border: none;
     padding: 0;
@@ -7984,7 +8042,7 @@ html[dir="rtl"] .login-form-topbar {
 
   .side-nav {
     position: fixed;
-    top: 64px;
+    top: var(--app-topbar-height);
     left: 0;
     bottom: 0;
     width: min(288px, 88vw);
@@ -8064,6 +8122,7 @@ html[dir="rtl"] .login-form-topbar {
 
   .content-area {
     padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     min-width: 0;
     max-width: 100%;
     overflow-x: auto;
@@ -8075,12 +8134,41 @@ html[dir="rtl"] .login-form-topbar {
     max-width: 100%;
   }
 
+  .page {
+    min-width: 0;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .stock-header-actions,
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .table-wrapper {
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Wide list tables: scroll horizontally instead of crushing columns */
+  .table-wrapper > table.stock-table:not(.equipment-detail-spec-table) {
+    min-width: 760px;
+  }
+
   .table-responsive {
     max-width: 100%;
   }
 }
 
-@media (min-width: 992px) {
+@media (min-width: 1200px) {
   .mobile-nav-toggle,
   .mobile-nav-backdrop {
     display: none !important;
@@ -8134,6 +8222,82 @@ body.mobile-nav-open {
 
   .profile-details-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Small phones: compact top bar; labels use .top-action-label (visually hidden, still read by screen readers) */
+@media (max-width: 575.98px) {
+  .top-bar {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+    gap: 0.3rem;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  .brand-subtitle-primary {
+    max-width: min(38vw, 9.5rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-company-trigger {
+    min-width: 0;
+    max-width: 46vw;
+    padding: 0.3rem 0.42rem;
+    gap: 0.3rem;
+  }
+
+  .topbar-company-trigger-name {
+    max-width: 30vw;
+    font-size: 0.78rem;
+  }
+
+  .topbar-company-trigger-label {
+    font-size: 0.52rem;
+  }
+
+  .topbar-company-trigger-logo-wrap {
+    width: 28px;
+    height: 28px;
+  }
+
+  .topbar-company-trigger-logo {
+    width: 22px;
+    height: 22px;
+  }
+
+  .top-action-btn,
+  .profile-trigger-btn {
+    position: relative;
+    padding: 0.34rem 0.42rem;
+    gap: 0.3rem;
+  }
+
+  .top-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .lang-switch-wrap {
+    padding: 0.2rem 0.35rem;
+    gap: 0.3rem;
+  }
+
+  .lang-switch-select {
+    font-size: 0.78rem;
+    padding: 0.18rem 0.4rem;
   }
 }
 

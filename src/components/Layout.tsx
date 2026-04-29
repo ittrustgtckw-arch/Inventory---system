@@ -236,7 +236,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   }, [mobileNavOpen]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 991.98px)");
+    const mq = window.matchMedia("(max-width: 1199.98px)");
     const syncBody = () => {
       if (!mq.matches) {
         document.body.classList.remove("mobile-nav-open");
@@ -539,25 +539,37 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
               <option value="ar">AR</option>
             </select>
           </div>
-          <button className="ghost-button profile-trigger-btn top-action-btn top-action-profile" onClick={() => setProfileModalOpen(true)}>
+          <button
+            type="button"
+            className="ghost-button profile-trigger-btn top-action-btn top-action-profile"
+            onClick={() => setProfileModalOpen(true)}
+            aria-label={t("topbar.myProfile")}
+          >
             <span className="profile-trigger-avatar" aria-hidden>
               {((displayName || role || "U").slice(0, 1) || "U").toUpperCase()}
             </span>
-            <span>{t("topbar.myProfile")}</span>
+            <span className="top-action-label">{t("topbar.myProfile")}</span>
           </button>
           {role === "manager" ? (
             <button
+              type="button"
               className="ghost-button top-action-btn top-action-manage"
               onClick={() => setPermissionModalOpen(true)}
               disabled={permissionSaving}
+              aria-label={t("topbar.managePermissions")}
             >
               <i className="bi bi-shield-lock-fill top-action-icon" aria-hidden />
-              {t("topbar.managePermissions")}
+              <span className="top-action-label">{t("topbar.managePermissions")}</span>
             </button>
           ) : null}
-          <button className="ghost-button top-action-btn top-action-logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="ghost-button top-action-btn top-action-logout"
+            onClick={handleLogout}
+            aria-label={t("common.logout")}
+          >
             <i className="bi bi-box-arrow-right top-action-icon" aria-hidden />
-            {t("common.logout")}
+            <span className="top-action-label">{t("common.logout")}</span>
           </button>
         </div>
       </header>
