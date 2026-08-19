@@ -3550,21 +3550,29 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "inventory-api" });
 });
 
-// SPA fallback so browser refresh on /factory/items (and other app routes) does not 404
-// when the API also serves the built frontend from dist/.
+// SPA fallback: refresh on /factory/* (and other app routes) must not 404.
+// - If dist/ exists, serve the built app (combined API+frontend).
+// - In local dev there is no dist/; Express was returning a blank "Not Found" page
+//   when the UI was opened on PORT (3001) instead of Vite (5173). Redirect those
+//   page requests to Vite so refresh keeps the same Factory Inventory URL.
 const DIST_DIR = path.join(__dirname, "..", "dist");
 app.use((req, res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD") return next();
   const p = String(req.path || "");
   if (p.startsWith("/api") || p.startsWith("/uploads")) return next();
   const indexFile = path.join(DIST_DIR, "index.html");
-  if (!fs.existsSync(indexFile)) return next();
-  if (p.includes(".") && !p.endsWith(".html")) {
-    const asset = path.join(DIST_DIR, p);
-    if (fs.existsSync(asset)) return res.sendFile(asset);
-    return next();
+  if (fs.existsSync(indexFile)) {
+    if (p.includes(".") && !p.endsWith(".html")) {
+      const asset = path.join(DIST_DIR, p);
+      if (fs.existsSync(asset)) return res.sendFile(asset);
+      return next();
+    }
+    return res.sendFile(indexFile);
   }
-  return res.sendFile(indexFile);
+  if (String(process.env.NODE_ENV || "").toLowerCase() === "production") return next();
+  const vitePort = String(process.env.VITE_DEV_PORT || "5173").trim() || "5173";
+  const dest = `http://127.0.0.1:${vitePort}${req.originalUrl || p || "/"}`;
+  return res.redirect(302, dest);
 });
 
 async function startServer() {

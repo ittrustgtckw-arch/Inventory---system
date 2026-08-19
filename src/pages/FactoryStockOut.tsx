@@ -71,7 +71,7 @@ export const FactoryStockOut: React.FC = () => {
   const overStock = selectedItem && qtyOutNum > 0 && qtyOutNum > selectedItem.currentStock;
 
   return (
-    <div className="page">
+    <div className="page page-factory">
       <div className="page-header">
         <div>
           <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>

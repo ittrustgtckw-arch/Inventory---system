@@ -70,7 +70,7 @@ export const FactoryStockIn: React.FC = () => {
   const filtered = filterCode.trim() ? records.filter((r) => r.itemCode === filterCode.trim().toUpperCase()) : records;
 
   return (
-    <div className="page">
+    <div className="page page-factory">
       <div className="page-header">
         <div>
           <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>

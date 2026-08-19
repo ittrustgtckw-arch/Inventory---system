@@ -53,7 +53,7 @@ export const FactoryStockDashboard: React.FC = () => {
   const f = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="page">
+    <div className="page page-factory">
       <div className="page-header">
         <div>
           <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>

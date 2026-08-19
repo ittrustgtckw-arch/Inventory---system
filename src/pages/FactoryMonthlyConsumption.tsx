@@ -50,7 +50,7 @@ export const FactoryMonthlyConsumption: React.FC = () => {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   return (
-    <div className="page">
+    <div className="page page-factory">
       <div className="page-header">
         <div>
           <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -135,7 +135,7 @@ export const FactoryItemMaster: React.FC = () => {
     : items;
 
   return (
-    <div className="page">
+    <div className="page page-factory">
       <div className="page-header">
         <div>
           <h1 style={{ display: "flex", alignItems: "center", gap: 10 }}>
