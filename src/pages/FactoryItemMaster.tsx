@@ -249,69 +249,79 @@ export const FactoryItemMaster: React.FC = () => {
       )}
 
       {showForm && (
-        <div className="stock-delete-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="stock-delete-modal" style={{ maxWidth: 600, width: "100%" }}>
-            <h4 style={{ marginBottom: 16 }}>{editCode ? `Edit Item — ${editCode}` : "New Item"}</h4>
-            {error && <div className="alert alert-danger py-2 small">{error}</div>}
-            <div className="row g-3">
+        <div className="stock-delete-modal-backdrop factory-form-backdrop" role="dialog" aria-modal="true" aria-labelledby="factory-item-form-title">
+          <div className="stock-delete-modal factory-form-modal factory-form-modal--item card border-0 shadow-lg">
+            <div className="factory-form-modal-header">
+              <div className="factory-form-modal-icon" aria-hidden>
+                <i className={`bi ${editCode ? "bi-pencil-square" : "bi-plus-lg"}`} />
+              </div>
+              <div>
+                <h4 id="factory-item-form-title" className="mb-1">{editCode ? `Edit Item — ${editCode}` : "New Item"}</h4>
+                <p className="text-muted mb-0 small">
+                  {editCode ? "Update master data for this item. Current stock stays calculated from in/out." : "Add a unique item code. Description, unit, and cost will auto-fill on Stock In / Out."}
+                </p>
+              </div>
+            </div>
+            {error && <div className="alert alert-danger py-2 small mb-3">{error}</div>}
+            <div className="row g-3 g-md-4">
               {!editCode && (
                 <div className="col-md-4">
-                  <label className="form-label form-label-sm">Item Code *</label>
-                  <input className="form-control form-control-sm" placeholder="e.g. RM-001" value={form.itemCode}
+                  <label className="form-label fw-semibold">Item Code *</label>
+                  <input className="form-control" placeholder="e.g. RM-001" value={form.itemCode}
                     onChange={(e) => setForm((f) => ({ ...f, itemCode: e.target.value }))} disabled={saving} />
                 </div>
               )}
-              <div className={editCode ? "col-md-6" : "col-md-8"}>
-                <label className="form-label form-label-sm">Description *</label>
-                <input className="form-control form-control-sm" value={form.description}
+              <div className={editCode ? "col-12" : "col-md-8"}>
+                <label className="form-label fw-semibold">Description *</label>
+                <input className="form-control" value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Category *</label>
-                <select className="form-select form-select-sm" value={form.category}
+                <label className="form-label fw-semibold">Category *</label>
+                <select className="form-select" value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} disabled={saving}>
                   {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Unit *</label>
-                <input className="form-control form-control-sm" placeholder="KG / PCS / M" value={form.unit}
+                <label className="form-label fw-semibold">Unit *</label>
+                <input className="form-control" placeholder="KG / PCS / M" value={form.unit}
                   onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Opening Stock</label>
-                <input type="number" min={0} className="form-control form-control-sm" value={form.openingStock}
+                <label className="form-label fw-semibold">Opening Stock</label>
+                <input type="number" min={0} className="form-control" value={form.openingStock}
                   onChange={(e) => setForm((f) => ({ ...f, openingStock: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Min Stock Level</label>
-                <input type="number" min={0} className="form-control form-control-sm" value={form.minStockLevel}
+                <label className="form-label fw-semibold">Min Stock Level</label>
+                <input type="number" min={0} className="form-control" value={form.minStockLevel}
                   onChange={(e) => setForm((f) => ({ ...f, minStockLevel: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Reorder Qty</label>
-                <input type="number" min={0} className="form-control form-control-sm" value={form.reorderQty}
+                <label className="form-label fw-semibold">Reorder Qty</label>
+                <input type="number" min={0} className="form-control" value={form.reorderQty}
                   onChange={(e) => setForm((f) => ({ ...f, reorderQty: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-4">
-                <label className="form-label form-label-sm">Unit Cost (KWD)</label>
-                <input type="number" min={0} step={0.001} className="form-control form-control-sm" value={form.unitCost}
+                <label className="form-label fw-semibold">Unit Cost (KWD)</label>
+                <input type="number" min={0} step={0.001} className="form-control" value={form.unitCost}
                   onChange={(e) => setForm((f) => ({ ...f, unitCost: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-6">
-                <label className="form-label form-label-sm">Supplier</label>
-                <input className="form-control form-control-sm" value={form.supplier}
+                <label className="form-label fw-semibold">Supplier</label>
+                <input className="form-control" value={form.supplier}
                   onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} disabled={saving} />
               </div>
               <div className="col-md-6">
-                <label className="form-label form-label-sm">Storage Location</label>
-                <input className="form-control form-control-sm" value={form.storageLocation}
+                <label className="form-label fw-semibold">Storage Location</label>
+                <input className="form-control" value={form.storageLocation}
                   onChange={(e) => setForm((f) => ({ ...f, storageLocation: e.target.value }))} disabled={saving} />
               </div>
             </div>
-            <div className="stock-delete-modal-actions" style={{ marginTop: 20 }}>
-              <button className="stock-action-btn stock-cancel-btn" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => void handleSave()} disabled={saving}>
+            <div className="factory-form-modal-actions d-flex justify-content-end gap-2">
+              <button type="button" className="btn btn-outline-secondary px-4" onClick={() => setShowForm(false)} disabled={saving}>Cancel</button>
+              <button type="button" className="btn btn-primary px-4" onClick={() => void handleSave()} disabled={saving}>
                 {saving ? "Saving…" : "Save"}
               </button>
             </div>
