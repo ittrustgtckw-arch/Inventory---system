@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clientsHeadingIcon from "../../clients dash.jpg";
 import { useCanEdit } from "../auth";
@@ -6,6 +6,8 @@ import { authHeadersJson } from "../utils/authHeaders";
 import { getAuthToken } from "../utils/authToken";
 import { downloadExcel } from "../utils/excel";
 import { useTranslation } from "react-i18next";
+import { StatCardIconButton } from "../components/StatCardIconButton";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
 
 interface Client {
   id: string;
@@ -85,6 +87,7 @@ export const Clients: React.FC = () => {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const fetchList = async () => {
     try {
@@ -288,7 +291,7 @@ export const Clients: React.FC = () => {
   };
 
   return (
-    <div className="page page-clients">
+    <div className="page page-clients" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -324,25 +327,54 @@ export const Clients: React.FC = () => {
           <div className="stock-stat-title">{t("clientsPage.totalClients")}</div>
           <div className="stock-stat-value">{stats.total}</div>
           <div className="stock-stat-sub">{t("clientsPage.inDirectory")}</div>
-          <i className="bi bi-people stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-people"
+            ariaLabel={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+            disabled={loading}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("stockPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("clientsPage.basedOnSearch")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+            disabled={loading}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("clientsPage.withEmail")}</div>
           <div className="stock-stat-value">{stats.withEmail}</div>
           <div className="stock-stat-sub">{t("clientsPage.reachable")}</div>
-          <i className="bi bi-envelope stock-stat-icon" />
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-envelope"
+            ariaLabel={t("common.statIconSearchEmailHint")}
+            title={t("common.statIconSearchEmailHint")}
+            onClick={() => {
+              setQuery("@");
+              openFiltersInView(pageRef.current);
+            }}
+            disabled={loading}
+          />
         </div>
         <div className="stock-stat-card stat-latest">
           <div className="stock-stat-title">{t("clientsPage.withPhone")}</div>
           <div className="stock-stat-value">{stats.withPhone}</div>
           <div className="stock-stat-sub">{t("clientsPage.callable")}</div>
-          <i className="bi bi-telephone stock-stat-icon" />
+          <StatCardIconButton
+            tone="latest"
+            iconClass="bi bi-telephone"
+            ariaLabel={t("common.statIconPhoneDirectory")}
+            title={t("common.statIconPhoneDirectory")}
+            onClick={() => openTableInView(pageRef.current)}
+            disabled={loading}
+          />
         </div>
       </div>
 

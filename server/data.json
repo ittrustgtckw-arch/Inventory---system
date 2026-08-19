@@ -1,4 +1,4 @@
-  {
+{
   "version": 2,
   "companies": {
     "trust_general": {
@@ -63,6 +63,96 @@
       ],
       "serviceHistory": [],
       "activityLog": [
+        {
+          "id": "6e465c03-8805-4053-b5dc-bb2f9cebc6d4",
+          "timestamp": "2026-08-18T17:18:48.820Z",
+          "actorName": "Admin",
+          "actorRole": "admin",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "c9f9887a-608f-4b3e-ab88-0d53dcb32969",
+          "timestamp": "2026-05-02T09:25:08.301Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "d878c0aa-b9a7-44fb-b7c7-6bac44d0f5c6",
+          "timestamp": "2026-05-02T08:50:03.176Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "04226452-8088-49f8-97d8-d48a522afd98",
+          "timestamp": "2026-05-02T08:20:49.856Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "12c270b3-6a16-4b00-a043-cb36f6ac333a",
+          "timestamp": "2026-05-02T08:03:31.858Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "cdcddcc3-d778-48ff-bc9d-2ab0dc7327a2",
+          "timestamp": "2026-05-02T07:20:26.358Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "637e2699-7580-45e3-aca1-1eef6860f376",
+          "timestamp": "2026-04-27T06:52:45.777Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "8e1313a9-6379-44e2-9c67-bff9862fc914",
+          "timestamp": "2026-04-27T06:46:59.582Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "76a73bfc-23b0-42ba-81db-93af50cc94af",
+          "timestamp": "2026-04-27T06:30:44.621Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
+        {
+          "id": "98c976bd-7f85-475f-9dd9-c2d7abb391dd",
+          "timestamp": "2026-04-27T06:16:57.465Z",
+          "actorName": "Manager",
+          "actorRole": "manager",
+          "section": "Auth",
+          "action": "Login",
+          "details": "User logged in."
+        },
         {
           "id": "95cbab7e-8f52-44ae-bfaf-9c0cab09f3fc",
           "timestamp": "2026-04-25T11:05:50.850Z",
@@ -1250,10 +1340,15 @@
         "technician": false,
         "account": false
       },
-      "stockAlertEmailLastDailyDate": "2026-04-26",
+      "stockAlertEmailLastDailyDate": "2026-04-30",
       "stockAlertEmailLastSentAt": {
-        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777192500882
-      }
+        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777538100602
+      },
+      "factoryItems": [],
+      "factoryStockIns": [],
+      "factoryStockOuts": [],
+      "factoryReorderAlerts": [],
+      "pendingProcurementRequests": []
     },
     "trust_factory": {
       "stockAvailability": [],
@@ -1268,10 +1363,103 @@
         "technician": false,
         "account": false
       },
-      "stockAlertEmailLastDailyDate": "2026-04-26",
+      "stockAlertEmailLastDailyDate": "2026-04-30",
       "stockAlertEmailLastSentAt": {
-        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777192504565
-      }
+        "stock_level_critical:inventory:Stock level is critical: no items currently in stock.": 1777538103631
+      },
+      "factoryItems": [
+        {
+          "id": "0612370f-561a-4801-be55-55d4c6c221eb",
+          "createdAt": "2026-08-18T08:36:22.920Z",
+          "itemCode": "RM-001",
+          "description": "MS Plate 6mm",
+          "category": "Raw Material",
+          "unit": "KG",
+          "openingStock": 500,
+          "minStockLevel": 100,
+          "reorderQty": 500,
+          "unitCost": 2.5,
+          "supplier": "Gulf Steel",
+          "storageLocation": "Yard A"
+        },
+        {
+          "id": "e06e18cc-6b3a-4224-9b9a-945afc16376c",
+          "createdAt": "2026-08-18T08:36:22.920Z",
+          "itemCode": "CN-001",
+          "description": "Welding Electrode 3.2mm",
+          "category": "Consumable",
+          "unit": "KG",
+          "openingStock": 50,
+          "minStockLevel": 10,
+          "reorderQty": 50,
+          "unitCost": 3,
+          "supplier": "Al Essa Industrial",
+          "storageLocation": "Store B"
+        },
+        {
+          "id": "f5a5a37a-9c58-4236-8e2a-6b2ba3c86487",
+          "createdAt": "2026-08-18T08:36:22.920Z",
+          "itemCode": "TL-001",
+          "description": "Angle Grinder 4.5\"",
+          "category": "Tool",
+          "unit": "PCS",
+          "openingStock": 5,
+          "minStockLevel": 2,
+          "reorderQty": 3,
+          "unitCost": 45,
+          "supplier": "Tools Direct",
+          "storageLocation": "Tool Store"
+        },
+        {
+          "id": "b542a468-3b76-48ab-a78a-a2707dbaf03b",
+          "createdAt": "2026-08-18T08:36:22.920Z",
+          "itemCode": "FG-001",
+          "description": "Fabricated Gate 3x2m",
+          "category": "Finished Good",
+          "unit": "PCS",
+          "openingStock": 2,
+          "minStockLevel": 0,
+          "reorderQty": 5,
+          "unitCost": 850,
+          "supplier": "Internal Production",
+          "storageLocation": "Dispatch Area"
+        }
+      ],
+      "factoryStockIns": [],
+      "factoryStockOuts": [],
+      "factoryReorderAlerts": [],
+      "pendingProcurementRequests": []
     }
-  }
+  },
+  "users": [
+    {
+      "username": "admin@company.com",
+      "password": "admin123",
+      "role": "admin",
+      "displayName": "Admin",
+      "active": true
+    },
+    {
+      "username": "manager@gtc.com",
+      "password": "manager123",
+      "role": "manager",
+      "displayName": "Manager",
+      "active": true
+    },
+    {
+      "username": "technician@company.com",
+      "password": "technician123",
+      "role": "technician",
+      "displayName": "Technician",
+      "active": true
+    },
+    {
+      "username": "account@company.com",
+      "password": "account123",
+      "role": "account",
+      "displayName": "Account",
+      "active": true
+    }
+  ],
+  "stockAlertMailEnabled": false
 }

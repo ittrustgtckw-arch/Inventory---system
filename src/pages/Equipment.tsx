@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import equipmentHeadingIcon from "../../inventiry dash.png";
 import { useCanEdit } from "../auth";
@@ -7,6 +7,11 @@ import { authHeadersJson } from "../utils/authHeaders";
 import { getAuthToken } from "../utils/authToken";
 import { downloadExcel } from "../utils/excel";
 import { useTranslation } from "react-i18next";
+import { StatCardDateFilter } from "../components/StatCardDateFilter";
+import { useDateFilterCalendar } from "../hooks/useDateFilterCalendar";
+import { formatIsoDateForLocale, normalizeDateKey } from "../utils/dateFilter";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
+import { StatCardIconButton } from "../components/StatCardIconButton";
 
 type EquipmentType =
   | "crane"
@@ -177,7 +182,8 @@ function validateEquipmentForm(values: {
 }
 
 export const Equipment: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLang: "en" | "ar" = String(i18n.resolvedLanguage || i18n.language || "en").startsWith("ar") ? "ar" : "en";
   const canEdit = useCanEdit();
   const [searchParams, setSearchParams] = useSearchParams();
   const [list, setList] = useState<EquipmentItem[]>([]);
@@ -207,6 +213,14 @@ export const Equipment: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const {
+    dateFilter: commissionDateFilter,
+    setDateFilter: setCommissionDateFilter,
+    calendarOpen: commissionCalendarOpen,
+    setCalendarOpen: setCommissionCalendarOpen,
+    wrapRef: commissionCalendarWrapRef,
+  } = useDateFilterCalendar();
+  const pageRef = useRef<HTMLDivElement>(null);
   const [recordFiles, setRecordFiles] = useState<RecordFileItem[]>([]);
   const [pendingFiles, setPendingFiles] = useState<Record<EquipmentFileSlot, File | null>>({
     main: null,
@@ -257,6 +271,17 @@ export const Equipment: React.FC = () => {
     fetchList();
   }, [typeFilter]);
 
+  const latestCommissionIso = useMemo(() => {
+    const keys = list.map((i) => normalizeDateKey(String(i.commissionDate || ""))).filter(Boolean);
+    if (!keys.length) return "";
+    return [...keys].sort((a, b) => b.localeCompare(a))[0];
+  }, [list]);
+
+  const latestCommissionIdle = useMemo(
+    () => (latestCommissionIso ? formatIsoDateForLocale(latestCommissionIso, uiLang) : "—"),
+    [latestCommissionIso, uiLang]
+  );
+
   useEffect(() => {
     const editId = searchParams.get("edit");
     if (!editId || list.length === 0) return;
@@ -274,6 +299,10 @@ export const Equipment: React.FC = () => {
       const itemSt = normalizeEquipmentStatus(String(item.status));
       const statusOk = statusFilter === "all" ? true : itemSt === statusFilter;
       if (!statusOk) return false;
+      if (commissionDateFilter) {
+        const dayKey = normalizeDateKey(String(item.commissionDate || ""));
+        if (dayKey !== commissionDateFilter) return false;
+      }
       if (!q) return true;
       const hay = [
         typeLabel(t, item.type),
@@ -302,7 +331,7 @@ export const Equipment: React.FC = () => {
     });
 
     return sorted;
-  }, [list, query, sortDir, sortKey, statusFilter]);
+  }, [commissionDateFilter, list, query, sortDir, sortKey, statusFilter, t]);
 
   const stats = useMemo(() => {
     const total = list.length;
@@ -542,7 +571,7 @@ export const Equipment: React.FC = () => {
   };
 
   return (
-    <div className="page page-equipment">
+    <div className="page page-equipment" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -578,31 +607,72 @@ export const Equipment: React.FC = () => {
           <div className="stock-stat-title">{t("equipmentPage.totalEquipment")}</div>
           <div className="stock-stat-value">{stats.total}</div>
           <div className="stock-stat-sub">{t("equipmentPage.allItems")}</div>
-          <i className="bi bi-tools stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-tools"
+            ariaLabel={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("stockPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("stockPage.basedOnFilters")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("dashboard.statusActive")}</div>
           <div className="stock-stat-value">{stats.active}</div>
-          <div className="stock-stat-sub">{t("equipmentPage.inOperation")}</div>
-          <i className="bi bi-check2-circle stock-stat-icon" />
+          <div className="stock-stat-sub">{t("equipmentPage.activeStatSub", { count: stats.maintenance })}</div>
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-check2-circle"
+            ariaLabel={t("common.statIconFilterActive")}
+            title={t("common.statIconFilterActive")}
+            onClick={() => {
+              setStatusFilter("active");
+              openFiltersInView(pageRef.current);
+            }}
+          />
         </div>
-        <div className="stock-stat-card stat-latest">
-          <div className="stock-stat-title">{t("equipmentPage.maintenance")}</div>
-          <div className="stock-stat-value">{stats.maintenance}</div>
-          <div className="stock-stat-sub">{t("dashboard.statusUnderMaintenance")}</div>
-          <i className="bi bi-wrench-adjustable stock-stat-icon" />
-        </div>
+        <StatCardDateFilter
+          wrapRef={commissionCalendarWrapRef}
+          calendarOpen={commissionCalendarOpen}
+          setCalendarOpen={setCommissionCalendarOpen}
+          dateFilter={commissionDateFilter}
+          setDateFilter={setCommissionDateFilter}
+          uiLang={uiLang}
+          cardTitle={t("equipmentPage.commissionDate")}
+          idleValue={latestCommissionIdle}
+          labels={{
+            pickAria: t("equipmentPage.pickCommissionDateAria"),
+            clearChip: t("stockPage.clearDateFilter"),
+            popoverClear: t("stockPage.calendarClear"),
+            today: t("stockPage.calendarToday"),
+            dialogAria: t("equipmentPage.commissionCalendarDialogAria"),
+            filteredSub: t("common.dateFilterListActive"),
+            defaultSub: t("equipmentPage.latestCommissionSub"),
+          }}
+        />
         <div className="stock-stat-card stat-replacement">
           <div className="stock-stat-title">{t("dashboard.statusReplacement")}</div>
           <div className="stock-stat-value">{stats.replacement}</div>
           <div className="stock-stat-sub">{t("equipmentPage.pendingSwap")}</div>
-          <i className="bi bi-arrow-left-right stock-stat-icon" />
+          <StatCardIconButton
+            tone="replacement"
+            iconClass="bi bi-arrow-left-right"
+            ariaLabel={t("common.statIconFilterReplacement")}
+            title={t("common.statIconFilterReplacement")}
+            onClick={() => {
+              setStatusFilter("replacement");
+              openFiltersInView(pageRef.current);
+            }}
+          />
         </div>
       </div>
 
@@ -938,14 +1008,14 @@ export const Equipment: React.FC = () => {
                         {list.length === 0 ? t("equipmentPage.addFirstEquipment") : t("stockPage.tryAdjusting")}
                       </div>
                       <div className="stock-empty-actions">
-                        {query.trim() ||
-                        statusFilter !== "all" ? (
+                        {query.trim() || statusFilter !== "all" || commissionDateFilter ? (
                           <button
                             type="button"
                             className="ghost-button"
                             onClick={() => {
                               setQuery("");
                               setStatusFilter("all");
+                              setCommissionDateFilter("");
                             }}
                           >
                             {t("stockPage.clearFilters")}

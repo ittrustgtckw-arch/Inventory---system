@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import stockAvailabilityIcon from "../../stock ava dash.avif";
@@ -9,7 +9,12 @@ import {
   type BusinessDepartment,
   normalizeBusinessDepartment,
 } from "../departments";
+import { StatCardDateFilter } from "../components/StatCardDateFilter";
+import { StatCardIconButton } from "../components/StatCardIconButton";
 import { SoldFormCustomSelect } from "../components/SoldFormCustomSelect";
+import { useDateFilterCalendar } from "../hooks/useDateFilterCalendar";
+import { normalizeDateKey } from "../utils/dateFilter";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
 import { authHeadersJson } from "../utils/authHeaders";
 import { downloadExcel } from "../utils/excel";
 
@@ -75,6 +80,14 @@ export const StockAvailability: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>("dateOfProcurement");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const {
+    dateFilter: procurementDateFilter,
+    setDateFilter: setProcurementDateFilter,
+    calendarOpen: procurementCalendarOpen,
+    setCalendarOpen: setProcurementCalendarOpen,
+    wrapRef: procurementCalendarWrapRef,
+  } = useDateFilterCalendar();
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const fetchList = async () => {
     try {
@@ -133,6 +146,10 @@ export const StockAvailability: React.FC = () => {
           : "";
       const fieldOk = filterField === "all" || filterValue === "all" ? true : currentValue === filterValue;
       if (!fieldOk) return false;
+      if (procurementDateFilter) {
+        const dayKey = normalizeDateKey(String(item.dateOfProcurement || ""));
+        if (dayKey !== procurementDateFilter) return false;
+      }
       if (!q) return true;
       const hay = [
         item.partNumber,
@@ -161,7 +178,7 @@ export const StockAvailability: React.FC = () => {
     });
 
     return sorted;
-  }, [list, filterField, filterValue, query, sortDir, sortKey]);
+  }, [list, filterField, filterValue, procurementDateFilter, query, sortDir, sortKey, uiLang]);
 
   const stats = useMemo(() => {
     const total = list.length;
@@ -315,7 +332,7 @@ export const StockAvailability: React.FC = () => {
   };
 
   return (
-    <div className="page page-stock">
+    <div className="page page-stock" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -353,26 +370,65 @@ export const StockAvailability: React.FC = () => {
           <div className="stock-stat-sub">
             {deptFilter ? t("stockPage.departmentOnly", { department: getBusinessDepartmentLabel(deptFilter, uiLang) }) : t("stockPage.allDepartments")}
           </div>
-          <i className="bi bi-box-seam stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-box-seam"
+            ariaLabel={t("common.statIconViewResults")}
+            title={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("stockPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("stockPage.basedOnFilters")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            title={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("stockPage.locations")}</div>
           <div className="stock-stat-value">{stats.locationCount}</div>
           <div className="stock-stat-sub">{t("stockPage.storageSites")}</div>
-          <i className="bi bi-geo-alt stock-stat-icon" />
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-geo-alt"
+            ariaLabel={t("common.statIconStockLocations")}
+            title={t("common.statIconStockLocations")}
+            onClick={() => {
+              setFilterField("location");
+              setFilterValue("all");
+              openFiltersInView(pageRef.current);
+              window.setTimeout(() => {
+                const selects = pageRef.current?.querySelectorAll<HTMLSelectElement>(".stock-filters select");
+                if (selects && selects.length >= 3) selects[2]?.focus();
+              }, 400);
+            }}
+          />
         </div>
-        <div className="stock-stat-card stat-latest">
-          <div className="stock-stat-title">{t("stockPage.latestProcurement")}</div>
-          <div className="stock-stat-value stock-stat-value-small">{stats.latest}</div>
-          <div className="stock-stat-sub">{t("stockPage.mostRecentDate")}</div>
-          <i className="bi bi-calendar3 stock-stat-icon" />
-        </div>
+        <StatCardDateFilter
+          wrapRef={procurementCalendarWrapRef}
+          calendarOpen={procurementCalendarOpen}
+          setCalendarOpen={setProcurementCalendarOpen}
+          dateFilter={procurementDateFilter}
+          setDateFilter={setProcurementDateFilter}
+          uiLang={uiLang}
+          cardTitle={t("stockPage.latestProcurement")}
+          idleValue={stats.latest}
+          labels={{
+            pickAria: t("stockPage.pickProcurementDateAria"),
+            clearChip: t("stockPage.clearDateFilter"),
+            popoverClear: t("stockPage.calendarClear"),
+            today: t("stockPage.calendarToday"),
+            dialogAria: t("stockPage.calendarDialogAria"),
+            filteredSub: t("stockPage.filteredByProcurementDate"),
+            defaultSub: t("stockPage.mostRecentDate"),
+          }}
+        />
       </div>
 
       <div className="stock-toolbar">
@@ -588,7 +644,7 @@ export const StockAvailability: React.FC = () => {
                             {t("stockPage.showAllDepartments")}
                           </button>
                         ) : null}
-                        {query.trim() || filterField !== "all" || filterValue !== "all" ? (
+                        {query.trim() || filterField !== "all" || filterValue !== "all" || procurementDateFilter ? (
                           <button
                             type="button"
                             className="ghost-button"
@@ -596,6 +652,7 @@ export const StockAvailability: React.FC = () => {
                               setQuery("");
                               setFilterField("all");
                               setFilterValue("all");
+                              setProcurementDateFilter("");
                             }}
                           >
                             {t("stockPage.clearFilters")}

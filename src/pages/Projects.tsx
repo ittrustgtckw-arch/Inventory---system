@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import projectsHeadingIcon from "../../project dash.jpg";
 import { useCanEdit } from "../auth";
@@ -7,6 +7,11 @@ import { authHeadersJson } from "../utils/authHeaders";
 import { getAuthToken } from "../utils/authToken";
 import { downloadExcel } from "../utils/excel";
 import { useTranslation } from "react-i18next";
+import { StatCardDateFilter } from "../components/StatCardDateFilter";
+import { StatCardIconButton } from "../components/StatCardIconButton";
+import { useDateFilterCalendar } from "../hooks/useDateFilterCalendar";
+import { formatIsoDateForLocale, normalizeDateKey } from "../utils/dateFilter";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
 
 interface Project {
   id: string;
@@ -76,7 +81,8 @@ function validateProjectForm(values: {
 }
 
 export const Projects: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLang: "en" | "ar" = String(i18n.resolvedLanguage || i18n.language || "en").startsWith("ar") ? "ar" : "en";
   const canEdit = useCanEdit();
   const [list, setList] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -100,6 +106,14 @@ export const Projects: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>("startDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const {
+    dateFilter: startDateFilter,
+    setDateFilter: setStartDateFilter,
+    calendarOpen: startDateCalendarOpen,
+    setCalendarOpen: setStartDateCalendarOpen,
+    wrapRef: startDateCalendarWrapRef,
+  } = useDateFilterCalendar();
+  const pageRef = useRef<HTMLDivElement>(null);
 
   const clientSelectOptions = useMemo(() => clients.map((c) => ({ value: c.id, label: c.name })), [clients]);
 
@@ -126,7 +140,9 @@ export const Projects: React.FC = () => {
 
   useEffect(() => {
     fetchList();
-    fetch("/api/clients").then((r) => r.ok && r.json().then(setClients)).catch(() => {});
+    fetch("/api/clients")
+      .then((r) => (r.ok ? r.json().then(setClients) : undefined))
+      .catch(() => {});
   }, []);
 
   const openNew = () => {
@@ -280,6 +296,17 @@ export const Projects: React.FC = () => {
 
   const clientName = (cid: string | null) => clients.find((c) => c.id === cid)?.name ?? t("projectsPage.notAvailable");
 
+  const latestStartIso = useMemo(() => {
+    const keys = list.map((i) => normalizeDateKey(String(i.startDate || ""))).filter(Boolean);
+    if (!keys.length) return "";
+    return [...keys].sort((a, b) => b.localeCompare(a))[0];
+  }, [list]);
+
+  const latestStartIdle = useMemo(
+    () => (latestStartIso ? formatIsoDateForLocale(latestStartIso, uiLang) : "—"),
+    [latestStartIso, uiLang]
+  );
+
   const filteredSorted = useMemo(() => {
     const q = safeLower(query).trim();
     const filtered = list.filter((item) => {
@@ -287,6 +314,10 @@ export const Projects: React.FC = () => {
       if (!clientOk) return false;
       const statusOk = statusFilter === "all" ? true : String(item.status || "active") === statusFilter;
       if (!statusOk) return false;
+      if (startDateFilter) {
+        const dayKey = normalizeDateKey(String(item.startDate || ""));
+        if (dayKey !== startDateFilter) return false;
+      }
       if (!q) return true;
       const hay = [
         item.name,
@@ -312,7 +343,7 @@ export const Projects: React.FC = () => {
     });
 
     return sorted;
-  }, [clientFilter, clients, list, query, sortDir, sortKey, statusFilter]);
+  }, [clientFilter, clients, list, query, sortDir, sortKey, startDateFilter, statusFilter, t]);
 
   const stats = useMemo(() => {
     const total = list.length;
@@ -368,7 +399,7 @@ export const Projects: React.FC = () => {
   };
 
   return (
-    <div className="page page-projects">
+    <div className="page page-projects" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -402,26 +433,58 @@ export const Projects: React.FC = () => {
           <div className="stock-stat-title">{t("projectsPage.totalProjects")}</div>
           <div className="stock-stat-value">{stats.total}</div>
           <div className="stock-stat-sub">{t("projectsPage.allRecords")}</div>
-          <i className="bi bi-diagram-3 stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-diagram-3"
+            ariaLabel={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("stockPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("stockPage.basedOnFilters")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("projectsPage.active")}</div>
           <div className="stock-stat-value">{stats.activeCount}</div>
-          <div className="stock-stat-sub">{t("projectsPage.inProgress")}</div>
-          <i className="bi bi-play-circle stock-stat-icon" />
+          <div className="stock-stat-sub">{t("projectsPage.activeStatSub", { count: stats.completedCount })}</div>
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-play-circle"
+            ariaLabel={t("common.statIconFilterActive")}
+            title={t("common.statIconFilterActive")}
+            onClick={() => {
+              setStatusFilter("active");
+              openFiltersInView(pageRef.current);
+            }}
+          />
         </div>
-        <div className="stock-stat-card stat-latest">
-          <div className="stock-stat-title">{t("projectsPage.completed")}</div>
-          <div className="stock-stat-value">{stats.completedCount}</div>
-          <div className="stock-stat-sub">{t("projectsPage.finished")}</div>
-          <i className="bi bi-check2-circle stock-stat-icon" />
-        </div>
+        <StatCardDateFilter
+          wrapRef={startDateCalendarWrapRef}
+          calendarOpen={startDateCalendarOpen}
+          setCalendarOpen={setStartDateCalendarOpen}
+          dateFilter={startDateFilter}
+          setDateFilter={setStartDateFilter}
+          uiLang={uiLang}
+          cardTitle={t("projectsPage.startDate")}
+          idleValue={latestStartIdle}
+          labels={{
+            pickAria: t("projectsPage.pickStartDateAria"),
+            clearChip: t("stockPage.clearDateFilter"),
+            popoverClear: t("stockPage.calendarClear"),
+            today: t("stockPage.calendarToday"),
+            dialogAria: t("projectsPage.startDateCalendarDialogAria"),
+            filteredSub: t("common.dateFilterListActive"),
+            defaultSub: t("projectsPage.latestStartSub"),
+          }}
+        />
       </div>
 
       <div className="stock-toolbar">
@@ -690,7 +753,7 @@ export const Projects: React.FC = () => {
                         {list.length === 0 ? t("projectsPage.addFirstProject") : t("stockPage.tryAdjusting")}
                       </div>
                       <div className="stock-empty-actions">
-                        {query.trim() || clientFilter !== "all" || statusFilter !== "all" ? (
+                        {query.trim() || clientFilter !== "all" || statusFilter !== "all" || startDateFilter ? (
                           <button
                             type="button"
                             className="ghost-button"
@@ -698,6 +761,7 @@ export const Projects: React.FC = () => {
                               setQuery("");
                               setClientFilter("all");
                               setStatusFilter("all");
+                              setStartDateFilter("");
                             }}
                           >
                             {t("stockPage.clearFilters")}

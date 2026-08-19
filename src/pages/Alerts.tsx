@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import alertsHeadingIcon from "../../alert dash.png";
 import { useAuth } from "../auth";
 import { getAuthToken } from "../utils/authToken";
 import { downloadExcel } from "../utils/excel";
+import { StatCardDateFilter } from "../components/StatCardDateFilter";
+import { useDateFilterCalendar } from "../hooks/useDateFilterCalendar";
+import { formatIsoDateForLocale, normalizeDateKey } from "../utils/dateFilter";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
+import { StatCardIconButton } from "../components/StatCardIconButton";
 
 interface AlertItem {
   type: string;
@@ -71,7 +76,8 @@ function translateAlertMessage(t: (k: string, o?: any) => string, msg: string) {
 }
 
 export const Alerts: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLang: "en" | "ar" = String(i18n.resolvedLanguage || i18n.language || "en").startsWith("ar") ? "ar" : "en";
   const { role } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +92,25 @@ export const Alerts: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("dueDate");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const {
+    dateFilter: dueDateFilter,
+    setDateFilter: setDueDateFilter,
+    calendarOpen: dueDateCalendarOpen,
+    setCalendarOpen: setDueDateCalendarOpen,
+    wrapRef: dueDateCalendarWrapRef,
+  } = useDateFilterCalendar();
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  const nearestDueIso = useMemo(() => {
+    const keys = alerts.map((a) => normalizeDateKey(String(a.dueDate || ""))).filter(Boolean);
+    if (!keys.length) return "";
+    return [...keys].sort((a, b) => a.localeCompare(b))[0];
+  }, [alerts]);
+
+  const nearestDueIdle = useMemo(
+    () => (nearestDueIso ? formatIsoDateForLocale(nearestDueIso, uiLang) : "—"),
+    [nearestDueIso, uiLang]
+  );
 
   useEffect(() => {
     fetch("/api/alerts")
@@ -117,6 +142,10 @@ export const Alerts: React.FC = () => {
       const sev = String(a.severity || "").toLowerCase();
       const sevOk = severityFilter === "all" ? true : sev === severityFilter;
       if (!sevOk) return false;
+      if (dueDateFilter) {
+        const dayKey = normalizeDateKey(String(a.dueDate || ""));
+        if (dayKey !== dueDateFilter) return false;
+      }
       if (!q) return true;
       const hay = [a.type, a.severity, a.entityType, a.entityName, a.dueDate, a.message].map(safeLower);
       return hay.some((h) => h.includes(q));
@@ -131,7 +160,7 @@ export const Alerts: React.FC = () => {
     });
 
     return sorted;
-  }, [alerts, query, severityFilter, sortDir, sortKey]);
+  }, [alerts, dueDateFilter, query, severityFilter, sortDir, sortKey]);
 
   const stats = useMemo(() => {
     const total = alerts.length;
@@ -262,7 +291,7 @@ export const Alerts: React.FC = () => {
   };
 
   return (
-    <div className="page page-alerts">
+    <div className="page page-alerts" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -339,26 +368,58 @@ export const Alerts: React.FC = () => {
           <div className="stock-stat-title">{t("alertsPage.totalAlerts")}</div>
           <div className="stock-stat-value">{stats.total}</div>
           <div className="stock-stat-sub">{t("alertsPage.upcomingOverdue")}</div>
-          <i className="bi bi-bell stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-bell"
+            ariaLabel={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("alertsPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("alertsPage.basedOnFilters")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("alertsPage.high")}</div>
           <div className="stock-stat-value">{stats.high}</div>
-          <div className="stock-stat-sub">{t("alertsPage.urgent")}</div>
-          <i className="bi bi-exclamation-triangle stock-stat-icon" />
+          <div className="stock-stat-sub">{t("alertsPage.highStatSub", { medium: stats.medium })}</div>
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-exclamation-triangle"
+            ariaLabel={t("common.statIconFilterHigh")}
+            title={t("common.statIconFilterHigh")}
+            onClick={() => {
+              setSeverityFilter("high");
+              openFiltersInView(pageRef.current);
+            }}
+          />
         </div>
-        <div className="stock-stat-card stat-latest">
-          <div className="stock-stat-title">{t("alertsPage.medium")}</div>
-          <div className="stock-stat-value">{stats.medium}</div>
-          <div className="stock-stat-sub">{t("alertsPage.planSoon")}</div>
-          <i className="bi bi-info-circle stock-stat-icon" />
-        </div>
+        <StatCardDateFilter
+          wrapRef={dueDateCalendarWrapRef}
+          calendarOpen={dueDateCalendarOpen}
+          setCalendarOpen={setDueDateCalendarOpen}
+          dateFilter={dueDateFilter}
+          setDateFilter={setDueDateFilter}
+          uiLang={uiLang}
+          cardTitle={t("alertsPage.dueDate")}
+          idleValue={nearestDueIdle}
+          labels={{
+            pickAria: t("alertsPage.pickDueDateAria"),
+            clearChip: t("stockPage.clearDateFilter"),
+            popoverClear: t("stockPage.calendarClear"),
+            today: t("stockPage.calendarToday"),
+            dialogAria: t("alertsPage.dueDateCalendarDialogAria"),
+            filteredSub: t("common.dateFilterListActive"),
+            defaultSub: t("alertsPage.nearestDueSub"),
+          }}
+        />
       </div>
 
       <div className="stock-toolbar">
@@ -408,13 +469,14 @@ export const Alerts: React.FC = () => {
               {alerts.length === 0 ? t("alertsPage.noUpcoming") : t("alertsPage.tryAdjusting")}
             </div>
             <div className="stock-empty-actions">
-              {query.trim() || severityFilter !== "all" ? (
+              {query.trim() || severityFilter !== "all" || dueDateFilter ? (
                 <button
                   type="button"
                   className="ghost-button"
                   onClick={() => {
                     setQuery("");
                     setSeverityFilter("all");
+                    setDueDateFilter("");
                   }}
                 >
                   {t("alertsPage.clearFilters")}

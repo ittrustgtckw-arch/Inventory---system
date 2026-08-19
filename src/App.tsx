@@ -11,8 +11,15 @@ import { Clients } from "./pages/Clients";
 import { Projects } from "./pages/Projects";
 import { Alerts } from "./pages/Alerts";
 import { Activities } from "./pages/Activities";
+import { BarcodeScan } from "./pages/BarcodeScan";
 import { SearchResultDetail } from "./pages/SearchResultDetail";
 import { Login } from "./pages/Login";
+import { FactoryItemMaster } from "./pages/FactoryItemMaster";
+import { FactoryStockIn } from "./pages/FactoryStockIn";
+import { FactoryStockOut } from "./pages/FactoryStockOut";
+import { FactoryStockDashboard } from "./pages/FactoryStockDashboard";
+import { FactoryMonthlyConsumption } from "./pages/FactoryMonthlyConsumption";
+import { FactoryReorderAlerts } from "./pages/FactoryReorderAlerts";
 import { AuthProvider } from "./auth";
 import { clearAuthToken, getAuthToken, setAuthToken } from "./utils/authToken";
 import { COMPANY_CHANGED_EVENT, getSelectedCompanyId, type CompanyId } from "./company";
@@ -88,6 +95,7 @@ function App() {
         <Route element={<Layout key={selectedCompanyId} onLogout={handleLogout} />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/scan" element={<BarcodeScan />} />
           <Route path="/search/:entity/:id" element={<SearchResultDetail />} />
           <Route path="/stock-availability" element={<StockAvailability />} />
           <Route path="/sold-stock" element={<SoldStock />} />
@@ -98,6 +106,12 @@ function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/activities" element={<Activities />} />
+          <Route path="/factory/items" element={<FactoryItemMaster />} />
+          <Route path="/factory/stock-in" element={<FactoryStockIn />} />
+          <Route path="/factory/stock-out" element={<FactoryStockOut />} />
+          <Route path="/factory/dashboard" element={<FactoryStockDashboard />} />
+          <Route path="/factory/monthly" element={<FactoryMonthlyConsumption />} />
+          <Route path="/factory/reorder-alerts" element={<FactoryReorderAlerts />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

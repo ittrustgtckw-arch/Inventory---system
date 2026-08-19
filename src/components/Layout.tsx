@@ -587,6 +587,10 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
             <i className="bi bi-speedometer2 nav-icon nav-icon-dashboard" />
             <span className="nav-label">{t("nav.dashboard")}</span>
           </NavLink>
+          <NavLink to="/scan" className="nav-item nav-item-scan">
+            <i className="bi bi-upc-scan nav-icon nav-icon-scan" />
+            <span className="nav-label">{t("nav.scan")}</span>
+          </NavLink>
 
           <div className="nav-section nav-section-inventory">
             <span className="nav-section-label">{t("nav.inventory")}</span>
@@ -626,6 +630,36 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
               <NavLink to="/activities" className="nav-item">
                 <i className="bi bi-clock-history nav-icon nav-icon-activities" />
                 <span className="nav-label">{t("nav.recentActivities")}</span>
+              </NavLink>
+            </div>
+          ) : null}
+
+          {selectedCompanyId === "trust_factory" ? (
+            <div className="nav-section" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 6 }}>
+              <span className="nav-section-label" style={{ color: "#f59e0b" }}>Factory Inventory</span>
+              <NavLink to="/factory/items" className="nav-item">
+                <i className="bi bi-card-list nav-icon" />
+                <span className="nav-label">Item Master</span>
+              </NavLink>
+              <NavLink to="/factory/stock-in" className="nav-item">
+                <i className="bi bi-box-arrow-in-down nav-icon" style={{ color: "#16a34a" }} />
+                <span className="nav-label">Stock In</span>
+              </NavLink>
+              <NavLink to="/factory/stock-out" className="nav-item">
+                <i className="bi bi-box-arrow-up nav-icon" style={{ color: "#dc2626" }} />
+                <span className="nav-label">Stock Out</span>
+              </NavLink>
+              <NavLink to="/factory/dashboard" className="nav-item">
+                <i className="bi bi-bar-chart-fill nav-icon" style={{ color: "#7c3aed" }} />
+                <span className="nav-label">Current Stock</span>
+              </NavLink>
+              <NavLink to="/factory/monthly" className="nav-item">
+                <i className="bi bi-calendar3 nav-icon" style={{ color: "#0891b2" }} />
+                <span className="nav-label">Monthly Consumption</span>
+              </NavLink>
+              <NavLink to="/factory/reorder-alerts" className="nav-item">
+                <i className="bi bi-exclamation-triangle-fill nav-icon" style={{ color: "#dc2626" }} />
+                <span className="nav-label">Reorder Alerts</span>
               </NavLink>
             </div>
           ) : null}

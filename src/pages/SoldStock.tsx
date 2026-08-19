@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import soldStockIcon from "../../sold dash.png";
@@ -9,7 +9,12 @@ import {
   type BusinessDepartment,
   normalizeBusinessDepartment,
 } from "../departments";
+import { StatCardDateFilter } from "../components/StatCardDateFilter";
+import { StatCardIconButton } from "../components/StatCardIconButton";
 import { SoldFormCustomSelect } from "../components/SoldFormCustomSelect";
+import { useDateFilterCalendar } from "../hooks/useDateFilterCalendar";
+import { normalizeDateKey } from "../utils/dateFilter";
+import { openFiltersInView, openTableInView } from "../utils/statCardUi";
 import { authHeadersJson } from "../utils/authHeaders";
 import { getAuthToken } from "../utils/authToken";
 import { downloadExcel } from "../utils/excel";
@@ -116,6 +121,15 @@ export const SoldStock: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
+  const {
+    dateFilter: sellsDateFilter,
+    setDateFilter: setSellsDateFilter,
+    calendarOpen: sellsCalendarOpen,
+    setCalendarOpen: setSellsCalendarOpen,
+    wrapRef: sellsCalendarWrapRef,
+  } = useDateFilterCalendar();
+  const pageRef = useRef<HTMLDivElement>(null);
+
   const fetchList = async () => {
     try {
       setLoading(true);
@@ -215,6 +229,10 @@ export const SoldStock: React.FC = () => {
         warrantyFilter === "all" ? true : warrantyFilter === "with" ? hasWarranty : !hasWarranty;
       if (!warrantyOk) return false;
 
+      if (sellsDateFilter) {
+        if (normalizeDateKey(String(item.sellsDate || "")) !== sellsDateFilter) return false;
+      }
+
       if (!q) return true;
       const hay = [
         item.serialNo,
@@ -250,7 +268,7 @@ export const SoldStock: React.FC = () => {
     });
 
     return sorted;
-  }, [list, query, sortDir, sortKey, warrantyFilter]);
+  }, [list, query, sellsDateFilter, sortDir, sortKey, uiLang, warrantyFilter]);
 
   const stats = useMemo(() => {
     const total = list.length;
@@ -494,7 +512,7 @@ export const SoldStock: React.FC = () => {
   };
 
   return (
-    <div className="page page-sold">
+    <div className="page page-sold" ref={pageRef}>
       <div className="page-header">
         <div>
           <div className="stock-heading">
@@ -532,26 +550,55 @@ export const SoldStock: React.FC = () => {
           <div className="stock-stat-sub">
             {deptFilter ? `${getBusinessDepartmentLabel(deptFilter, uiLang)} only` : t("stockPage.allDepartments")}
           </div>
-          <i className="bi bi-receipt stock-stat-icon" />
+          <StatCardIconButton
+            tone="total"
+            iconClass="bi bi-receipt"
+            ariaLabel={t("common.statIconViewResults")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-shown">
           <div className="stock-stat-title">{t("stockPage.showing")}</div>
           <div className="stock-stat-value">{stats.shown}</div>
           <div className="stock-stat-sub">{t("stockPage.basedOnFilters")}</div>
-          <i className="bi bi-funnel stock-stat-icon" />
+          <StatCardIconButton
+            tone="shown"
+            iconClass="bi bi-funnel"
+            ariaLabel={t("common.statIconOpenFilters")}
+            onClick={() => openFiltersInView(pageRef.current)}
+          />
         </div>
         <div className="stock-stat-card stat-locations">
           <div className="stock-stat-title">{t("soldPage.clients")}</div>
           <div className="stock-stat-value">{stats.clientCount}</div>
           <div className="stock-stat-sub">{t("soldPage.uniqueCustomers")}</div>
-          <i className="bi bi-people stock-stat-icon" />
+          <StatCardIconButton
+            tone="locations"
+            iconClass="bi bi-people"
+            ariaLabel={t("common.statIconBrowseClients")}
+            title={t("common.statIconBrowseClients")}
+            onClick={() => openTableInView(pageRef.current)}
+          />
         </div>
-        <div className="stock-stat-card stat-latest">
-          <div className="stock-stat-title">{t("soldPage.latestSale")}</div>
-          <div className="stock-stat-value stock-stat-value-small">{stats.latest}</div>
-          <div className="stock-stat-sub">{t("stockPage.mostRecentDate")}</div>
-          <i className="bi bi-calendar3 stock-stat-icon" />
-        </div>
+        <StatCardDateFilter
+          wrapRef={sellsCalendarWrapRef}
+          calendarOpen={sellsCalendarOpen}
+          setCalendarOpen={setSellsCalendarOpen}
+          dateFilter={sellsDateFilter}
+          setDateFilter={setSellsDateFilter}
+          uiLang={uiLang}
+          cardTitle={t("soldPage.latestSale")}
+          idleValue={stats.latest}
+          labels={{
+            pickAria: t("soldPage.pickSupplyDateAria"),
+            clearChip: t("stockPage.clearDateFilter"),
+            popoverClear: t("stockPage.calendarClear"),
+            today: t("stockPage.calendarToday"),
+            dialogAria: t("soldPage.supplyDateDialogAria"),
+            filteredSub: t("common.dateFilterListActive"),
+            defaultSub: t("stockPage.mostRecentDate"),
+          }}
+        />
       </div>
 
       <div className="stock-toolbar">
@@ -906,13 +953,14 @@ export const SoldStock: React.FC = () => {
                             {t("soldPage.viewAllDepartments")}
                           </button>
                         ) : null}
-                        {query.trim() || warrantyFilter !== "all" ? (
+                        {query.trim() || warrantyFilter !== "all" || sellsDateFilter ? (
                           <button
                             type="button"
                             className="ghost-button"
                             onClick={() => {
                               setQuery("");
                               setWarrantyFilter("all");
+                              setSellsDateFilter("");
                             }}
                           >
                             {t("stockPage.clearFilters")}

@@ -12,6 +12,8 @@ const crypto = require("crypto");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
 const { MongoClient } = require("mongodb");
+const { Readable } = require("stream");
+const cloudinary = require("cloudinary").v2;
 
 const app = express();
 const corsOrigins = String(process.env.CORS_ORIGIN || process.env.FRONTEND_URL || "*")
@@ -29,6 +31,98 @@ app.use(express.json());
 const UPLOADS_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use("/uploads", express.static(UPLOADS_DIR));
+
+// Cloudinary-backed file storage so uploaded documents survive redeploys (Render's local
+// disk is wiped on every deploy). Falls back to the local /uploads folder automatically
+// when Cloudinary credentials are not configured, so local dev keeps working unchanged.
+const CLOUDINARY_ENABLED = Boolean(
+  process.env.CLOUDINARY_URL ||
+    (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
+);
+if (CLOUDINARY_ENABLED) {
+  if (!process.env.CLOUDINARY_URL) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
+  }
+  console.log("[cloudinary] File storage enabled — uploads will persist across deploys.");
+} else {
+  console.warn(
+    "[cloudinary] CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET not set — falling back to local /uploads (files will be lost on redeploy)."
+  );
+}
+
+const CLOUDINARY_UPLOAD_FOLDER = process.env.CLOUDINARY_UPLOAD_FOLDER || "crane-system";
+
+function uploadBufferToCloudinary(buffer, options) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+    Readable.from(buffer).pipe(uploadStream);
+  });
+}
+
+/** Persists an uploaded file buffer to Cloudinary (preferred) or the local disk (fallback). */
+async function storeUploadedFile(file, { entityType, entityId } = {}) {
+  const ext = path.extname(String(file.originalname || "")).slice(0, 12);
+  if (CLOUDINARY_ENABLED) {
+    const folder = [CLOUDINARY_UPLOAD_FOLDER, entityType, entityId].filter(Boolean).join("/");
+    const result = await uploadBufferToCloudinary(file.buffer, {
+      folder,
+      resource_type: "auto",
+      public_id: `${Date.now()}-${crypto.randomUUID()}`,
+      use_filename: false,
+      unique_filename: false,
+    });
+    return {
+      provider: "cloudinary",
+      url: result.secure_url,
+      cloudinaryPublicId: result.public_id,
+      resourceType: result.resource_type,
+    };
+  }
+  const storedName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, storedName), file.buffer);
+  return {
+    provider: "local",
+    url: `/uploads/${storedName}`,
+    storedName,
+  };
+}
+
+/** Deletes a previously stored file from Cloudinary or the local disk, tolerating missing files. */
+async function deleteStoredFile(fileRow) {
+  if (!fileRow) return;
+  if (fileRow.cloudinaryPublicId) {
+    try {
+      await cloudinary.uploader.destroy(fileRow.cloudinaryPublicId, {
+        resource_type: fileRow.resourceType || "raw",
+      });
+    } catch (err) {
+      console.warn("[cloudinary] Failed to delete asset:", fileRow.cloudinaryPublicId, err?.message || err);
+    }
+    return;
+  }
+  if (fileRow.storedName) {
+    const p = path.join(UPLOADS_DIR, fileRow.storedName);
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch {}
+  }
+}
+
+/** Resolves the public URL for a stored file, preferring the persisted Cloudinary URL. */
+function fileUrlFor(fileRow) {
+  if (!fileRow) return "";
+  if (fileRow.url) return fileRow.url;
+  if (fileRow.storedName) return `/uploads/${fileRow.storedName}`;
+  return "";
+}
 
 const PORT = process.env.PORT || 3001;
 
@@ -164,6 +258,13 @@ let serviceHistory = [];
 let activityLog = [];
 let recordFiles = [];
 
+// Factory Inventory — trust_factory workspace only
+let factoryItems = [];
+let factoryStockIns = [];
+let factoryStockOuts = [];
+let factoryReorderAlerts = [];
+let pendingProcurementRequests = [];
+
 // In-memory stock alert email cooldown tracker: key -> last sent timestamp.
 const stockAlertEmailLastSentAt = new Map();
 let stockAlertEmailLastDailyDate = "";
@@ -183,6 +284,22 @@ const USE_LOCAL_DATA_FILE = String(process.env.USE_LOCAL_DATA_FILE || (MONGODB_U
 let mongoClient = null;
 let mongoCollection = null;
 let mongoPersistTimer = null;
+
+// Must exist before `loadPersistedDataFromFile()` / `hydrateStoreFromData()` run.
+// Default OFF; Mongo/data.json may set true. If `process.env.STOCK_ALERT_MAIL_ENABLED` is set (including "false"),
+// `applyStockAlertMailEnvOverride()` after hydrate forces that value — stops emails even when DB still has true.
+let stockAlertMailEnabled = String(process.env.STOCK_ALERT_MAIL_ENABLED || "false").trim().toLowerCase() === "true";
+
+function applyStockAlertMailEnvOverride() {
+  const raw = process.env.STOCK_ALERT_MAIL_ENABLED;
+  if (raw === undefined) return;
+  const s = String(raw).trim();
+  if (s === "") return;
+  stockAlertMailEnabled = s.toLowerCase() === "true";
+  console.log(
+    `[env] STOCK_ALERT_MAIL_ENABLED=${JSON.stringify(s)} → automatic stock alert mail ${stockAlertMailEnabled ? "ON" : "OFF"} (env overrides persisted app state when this variable is set).`
+  );
+}
 
 /**
  * Cross-instance daily claim for stock digest sending.
@@ -228,6 +345,11 @@ function createEmptyCompanyState() {
     roleEditAccess: defaultRoleEditAccess(),
     stockAlertEmailLastDailyDate: "",
     stockAlertEmailLastSentAt: {},
+    factoryItems: [],
+    factoryStockIns: [],
+    factoryStockOuts: [],
+    factoryReorderAlerts: [],
+    pendingProcurementRequests: [],
   };
 }
 
@@ -254,6 +376,11 @@ function ensureCompanyState(companyId) {
   if (!state.roleEditAccess || typeof state.roleEditAccess !== "object") state.roleEditAccess = defaultRoleEditAccess();
   if (typeof state.stockAlertEmailLastDailyDate !== "string") state.stockAlertEmailLastDailyDate = "";
   if (!state.stockAlertEmailLastSentAt || typeof state.stockAlertEmailLastSentAt !== "object") state.stockAlertEmailLastSentAt = {};
+  if (!Array.isArray(state.factoryItems)) state.factoryItems = [];
+  if (!Array.isArray(state.factoryStockIns)) state.factoryStockIns = [];
+  if (!Array.isArray(state.factoryStockOuts)) state.factoryStockOuts = [];
+  if (!Array.isArray(state.factoryReorderAlerts)) state.factoryReorderAlerts = [];
+  if (!Array.isArray(state.pendingProcurementRequests)) state.pendingProcurementRequests = [];
   return state;
 }
 
@@ -270,6 +397,11 @@ function flushBoundStateToStore() {
   state.roleEditAccess = roleEditAccess;
   state.stockAlertEmailLastDailyDate = stockAlertEmailLastDailyDate;
   state.stockAlertEmailLastSentAt = Object.fromEntries(stockAlertEmailLastSentAt.entries());
+  state.factoryItems = factoryItems;
+  state.factoryStockIns = factoryStockIns;
+  state.factoryStockOuts = factoryStockOuts;
+  state.factoryReorderAlerts = factoryReorderAlerts;
+  state.pendingProcurementRequests = pendingProcurementRequests;
 }
 
 function bindCompanyData(companyId) {
@@ -294,6 +426,11 @@ function bindCompanyData(companyId) {
     const n = Number(v || 0);
     if (Number.isFinite(n) && n > 0) stockAlertEmailLastSentAt.set(k, n);
   });
+  factoryItems = state.factoryItems;
+  factoryStockIns = state.factoryStockIns;
+  factoryStockOuts = state.factoryStockOuts;
+  factoryReorderAlerts = state.factoryReorderAlerts;
+  pendingProcurementRequests = state.pendingProcurementRequests;
 }
 
 function hydrateStoreFromData(data) {
@@ -320,6 +457,11 @@ function hydrateStoreFromData(data) {
           typeof src.stockAlertEmailLastDailyDate === "string" ? src.stockAlertEmailLastDailyDate : "";
         merged.stockAlertEmailLastSentAt =
           src.stockAlertEmailLastSentAt && typeof src.stockAlertEmailLastSentAt === "object" ? src.stockAlertEmailLastSentAt : {};
+        merged.factoryItems = Array.isArray(src.factoryItems) ? src.factoryItems : [];
+        merged.factoryStockIns = Array.isArray(src.factoryStockIns) ? src.factoryStockIns : [];
+        merged.factoryStockOuts = Array.isArray(src.factoryStockOuts) ? src.factoryStockOuts : [];
+        merged.factoryReorderAlerts = Array.isArray(src.factoryReorderAlerts) ? src.factoryReorderAlerts : [];
+        merged.pendingProcurementRequests = Array.isArray(src.pendingProcurementRequests) ? src.pendingProcurementRequests : [];
         companyStore[companyId] = merged;
       } else {
         companyStore[companyId] = createEmptyCompanyState();
@@ -349,6 +491,7 @@ function hydrateStoreFromData(data) {
     usersPersisted = cloneSeedUsers();
   }
   bindCompanyData(DEFAULT_COMPANY_ID);
+  applyStockAlertMailEnvOverride();
 }
 
 function loadPersistedDataFromFile() {
@@ -446,7 +589,6 @@ const SMTP_USER = String(process.env.SMTP_USER || "").trim();
 const SMTP_PASS = String(process.env.SMTP_PASS || "").trim();
 const SMTP_FROM = String(process.env.SMTP_FROM || SMTP_USER || "").trim();
 const STOCK_ALERT_MAIL_COOLDOWN_MIN = Math.max(5, Number.parseInt(String(process.env.STOCK_ALERT_MAIL_COOLDOWN_MIN || "180"), 10) || 180);
-let stockAlertMailEnabled = String(process.env.STOCK_ALERT_MAIL_ENABLED || "true").trim().toLowerCase() !== "false";
 
 function formatLocalYYYYMMDD(d = new Date()) {
   const y = d.getFullYear();
@@ -900,15 +1042,10 @@ function hydrateGlobalStockAlertDigestDateFromCompanies() {
 
 const ALLOWED_ENTITY_TYPES = new Set(["stock", "sold", "equipment", "client", "project"]);
 
-const uploadStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(String(file.originalname || "")).slice(0, 12);
-    cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
-  },
-});
+// Buffered in memory so the file can be streamed straight to Cloudinary (or written to
+// /uploads as a fallback) without ever touching disk twice.
 const upload = multer({
-  storage: uploadStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
 });
 
@@ -931,7 +1068,7 @@ function buildFilesFolder(entityType, entityId) {
   return {
     key: "files",
     items: files.slice(0, 50).map((f) => ({
-      path: `/uploads/${f.storedName}`,
+      path: fileUrlFor(f),
       title: f.originalName,
       subtitle: f.uploadedAt ? String(f.uploadedAt).slice(0, 10) : "",
     })),
@@ -1413,20 +1550,15 @@ app.get("/api/records/:entityType/:entityId/files", (req, res) => {
   }
   const files = getRecordFiles(entityType, entityId).map((f) => ({
     ...f,
-    url: `/uploads/${f.storedName}`,
+    url: fileUrlFor(f),
   }));
   res.json(files);
 });
 
-app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.single("file"), (req, res) => {
+app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.single("file"), async (req, res) => {
   const entityType = normalizeEntityType(req.params.entityType);
   const entityId = String(req.params.entityId || "").trim();
   if (!ALLOWED_ENTITY_TYPES.has(entityType) || !entityId) {
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch {}
-    }
     return res.status(400).json({ success: false, message: "Invalid record type or id." });
   }
   if (!req.file) {
@@ -1443,6 +1575,14 @@ app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.sing
     entityType === "sold" ? SOLD_SLOTS : entityType === "equipment" ? EQUIPMENT_SLOTS : new Set();
   const fileSlot = allowedSlots.has(slotRaw) ? slotRaw : undefined;
 
+  let stored;
+  try {
+    stored = await storeUploadedFile(req.file, { entityType, entityId });
+  } catch (err) {
+    console.error("[files] Failed to store uploaded file:", err?.message || err);
+    return res.status(502).json({ success: false, message: "Failed to store uploaded file." });
+  }
+
   if (fileSlot && (entityType === "sold" || entityType === "equipment")) {
     const toRemove = recordFiles.filter(
       (f) =>
@@ -1450,16 +1590,11 @@ app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.sing
         String(f.entityId || "").trim() === entityId &&
         String(f.slot || "").trim() === fileSlot
     );
-    toRemove.forEach((f) => {
+    for (const f of toRemove) {
       const idx = recordFiles.findIndex((x) => x.id === f.id);
       if (idx !== -1) recordFiles.splice(idx, 1);
-      if (f.storedName) {
-        const p = path.join(UPLOADS_DIR, f.storedName);
-        try {
-          if (fs.existsSync(p)) fs.unlinkSync(p);
-        } catch {}
-      }
-    });
+      await deleteStoredFile(f);
+    }
   }
 
   const fileRow = {
@@ -1467,11 +1602,11 @@ app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.sing
     entityType,
     entityId,
     originalName: String(req.file.originalname || "").trim() || "file",
-    storedName: String(req.file.filename || "").trim(),
     mimeType: String(req.file.mimetype || "").trim(),
     size: Number(req.file.size || 0),
     uploadedAt: new Date().toISOString(),
     uploadedBy: req.user?.displayName || req.user?.username || req.user?.role || "User",
+    ...stored,
     ...(fileSlot ? { slot: fileSlot } : {}),
   };
   recordFiles.push(fileRow);
@@ -1483,11 +1618,11 @@ app.post("/api/records/:entityType/:entityId/files", requireCanEdit, upload.sing
   });
   res.status(201).json({
     ...fileRow,
-    url: `/uploads/${fileRow.storedName}`,
+    url: fileUrlFor(fileRow),
   });
 });
 
-app.delete("/api/records/:entityType/:entityId/files/:fileId", requireCanEdit, (req, res) => {
+app.delete("/api/records/:entityType/:entityId/files/:fileId", requireCanEdit, async (req, res) => {
   const entityType = normalizeEntityType(req.params.entityType);
   const entityId = String(req.params.entityId || "").trim();
   const fileId = String(req.params.fileId || "").trim();
@@ -1501,14 +1636,7 @@ app.delete("/api/records/:entityType/:entityId/files/:fileId", requireCanEdit, (
   const removed = recordFiles[idx];
   recordFiles.splice(idx, 1);
   persistData();
-  if (removed?.storedName) {
-    const p = path.join(UPLOADS_DIR, removed.storedName);
-    if (fs.existsSync(p)) {
-      try {
-        fs.unlinkSync(p);
-      } catch {}
-    }
-  }
+  await deleteStoredFile(removed);
   logActivity(req.user, {
     section: "Files",
     action: "Deleted file",
@@ -1888,7 +2016,7 @@ app.put("/api/clients/:id", requireCanEdit, (req, res) => {
   res.json(clients[idx]);
 });
 
-app.delete("/api/clients/:id", requireCanEdit, (req, res) => {
+app.delete("/api/clients/:id", requireCanEdit, async (req, res) => {
   const idx = clients.findIndex((i) => i.id === req.params.id);
   if (idx === -1) return res.status(404).json({ success: false, message: "Not found." });
   const removed = clients[idx];
@@ -1896,16 +2024,11 @@ app.delete("/api/clients/:id", requireCanEdit, (req, res) => {
   clients.splice(idx, 1);
   if (cid) {
     const toDrop = recordFiles.filter((f) => normalizeEntityType(f.entityType) === "client" && String(f.entityId || "").trim() === cid);
-    toDrop.forEach((f) => {
+    for (const f of toDrop) {
       const fi = recordFiles.findIndex((x) => x.id === f.id);
       if (fi !== -1) recordFiles.splice(fi, 1);
-      if (f.storedName) {
-        const p = path.join(UPLOADS_DIR, f.storedName);
-        try {
-          if (fs.existsSync(p)) fs.unlinkSync(p);
-        } catch {}
-      }
-    });
+      await deleteStoredFile(f);
+    }
     if (toDrop.length) persistData();
   }
   logActivity(req.user, {
@@ -1973,7 +2096,7 @@ app.put("/api/projects/:id", requireCanEdit, (req, res) => {
   res.json(projects[idx]);
 });
 
-app.delete("/api/projects/:id", requireCanEdit, (req, res) => {
+app.delete("/api/projects/:id", requireCanEdit, async (req, res) => {
   const idx = projects.findIndex((i) => i.id === req.params.id);
   if (idx === -1) return res.status(404).json({ success: false, message: "Not found." });
   const removed = projects[idx];
@@ -1981,16 +2104,11 @@ app.delete("/api/projects/:id", requireCanEdit, (req, res) => {
   projects.splice(idx, 1);
   if (pid) {
     const toDrop = recordFiles.filter((f) => normalizeEntityType(f.entityType) === "project" && String(f.entityId || "").trim() === pid);
-    toDrop.forEach((f) => {
+    for (const f of toDrop) {
       const fi = recordFiles.findIndex((x) => x.id === f.id);
       if (fi !== -1) recordFiles.splice(fi, 1);
-      if (f.storedName) {
-        const p = path.join(UPLOADS_DIR, f.storedName);
-        try {
-          if (fs.existsSync(p)) fs.unlinkSync(p);
-        } catch {}
-      }
-    });
+      await deleteStoredFile(f);
+    }
     if (toDrop.length) persistData();
   }
   logActivity(req.user, {
@@ -2190,6 +2308,125 @@ function findByIdNormalized(arr, idRaw) {
   const want = normalizeSearchRecordId(idRaw);
   if (!want) return null;
   return arr.find((x) => normalizeSearchRecordId(x.id) === want) || null;
+}
+
+function barcodeScanNormalize(raw) {
+  return String(raw ?? "").trim();
+}
+
+/** Compare scanned value to stored serial / part / qr field (case and spacing tolerant). */
+function barcodeValuesMatch(scannedRaw, storedRaw) {
+  const scanned = barcodeScanNormalize(scannedRaw);
+  const stored = barcodeScanNormalize(storedRaw);
+  if (!scanned || !stored) return false;
+  if (scanned === stored) return true;
+  const sl = scanned.toLowerCase();
+  const tl = stored.toLowerCase();
+  if (sl === tl) return true;
+  const strip = (s) => s.replace(/\s+/g, "");
+  if (strip(scanned).toLowerCase() === strip(stored).toLowerCase()) return true;
+  if (normalizeSearchRecordId(scanned) === normalizeSearchRecordId(stored)) return true;
+  const minSub = 6;
+  if (sl.length >= minSub && tl.length >= minSub && (tl.includes(sl) || sl.includes(tl))) return true;
+  if (stored.startsWith("http") && sl.length >= 4 && tl.includes(sl)) return true;
+  if (scanned.startsWith("http") && tl.length >= 4 && sl.includes(tl)) return true;
+  return false;
+}
+
+/**
+ * Resolve a barcode / QR payload to app records (equipment serial, stock part / qrCode, sold serial, or record UUIDs).
+ */
+function collectBarcodeMatches(codeRaw) {
+  const code = barcodeScanNormalize(codeRaw);
+  if (!code) return [];
+
+  const matches = [];
+  const seen = new Set();
+  const push = (kind, id, label, path) => {
+    const key = `${kind}:${normalizeSearchRecordId(id)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    matches.push({ entity: kind, id, label, path });
+  };
+
+  const eqById = findByIdNormalized(equipment, code);
+  if (eqById) {
+    push(
+      "equipment",
+      eqById.id,
+      [eqById.name, eqById.serialNumber].filter(Boolean).join(" · "),
+      `/equipment/${eqById.id}`
+    );
+  }
+  for (const e of equipment) {
+    if (eqById && e.id === eqById.id) continue;
+    if (e.serialNumber && barcodeValuesMatch(code, e.serialNumber)) {
+      push("equipment", e.id, [e.name, e.serialNumber].filter(Boolean).join(" · "), `/equipment/${e.id}`);
+    }
+  }
+
+  const soldById = findByIdNormalized(soldStock, code);
+  if (soldById) {
+    push(
+      "sold",
+      soldById.id,
+      soldById.serialNo || String(soldById.soldEquipmentDetails || "").slice(0, 48),
+      `/sold-stock/${encodeURIComponent(String(soldById.id))}`
+    );
+  }
+  for (const s of soldStock) {
+    if (soldById && s.id === soldById.id) continue;
+    if (s.serialNo && barcodeValuesMatch(code, s.serialNo)) {
+      push(
+        "sold",
+        s.id,
+        s.serialNo || String(s.soldEquipmentDetails || "").slice(0, 48),
+        `/sold-stock/${encodeURIComponent(String(s.id))}`
+      );
+    }
+  }
+
+  const stockById = findByIdNormalized(stockAvailability, code);
+  if (stockById) {
+    push(
+      "stock",
+      stockById.id,
+      stockById.partNumber || stockById.partDescription || "",
+      `/search/stock/${encodeURIComponent(String(stockById.id))}`
+    );
+  }
+  for (const row of stockAvailability) {
+    if (stockById && row.id === stockById.id) continue;
+    if (row.partNumber && barcodeValuesMatch(code, row.partNumber)) {
+      push(
+        "stock",
+        row.id,
+        row.partNumber || row.partDescription || "",
+        `/search/stock/${encodeURIComponent(String(row.id))}`
+      );
+      continue;
+    }
+    if (row.qrCode && barcodeValuesMatch(code, row.qrCode)) {
+      push(
+        "stock",
+        row.id,
+        row.partNumber || row.partDescription || "",
+        `/search/stock/${encodeURIComponent(String(row.id))}`
+      );
+    }
+  }
+
+  const clientById = findByIdNormalized(clients, code);
+  if (clientById) {
+    push("client", clientById.id, clientById.name || "", `/search/client/${encodeURIComponent(String(clientById.id))}`);
+  }
+
+  const projById = findByIdNormalized(projects, code);
+  if (projById) {
+    push("project", projById.id, projById.name || "", `/search/project/${encodeURIComponent(String(projById.id))}`);
+  }
+
+  return matches;
 }
 
 function searchFindClient(cid) {
@@ -2496,6 +2733,21 @@ function buildSearchResultRowForRecord(entityRaw, idRaw) {
 
   return null;
 }
+
+/** Map a scanned barcode / QR code to inventory records (serial numbers, part numbers, IDs). */
+app.get("/api/barcode-lookup", (req, res) => {
+  const codeRaw = req.query.code != null ? String(req.query.code) : "";
+  const trimmed = barcodeScanNormalize(codeRaw);
+  if (!trimmed) {
+    return res.status(400).json({
+      success: false,
+      message: 'Query parameter "code" is required.',
+      matches: [],
+    });
+  }
+  const matches = collectBarcodeMatches(trimmed);
+  res.json({ success: true, code: trimmed, matches });
+});
 
 /** Query form avoids path/proxy edge cases with UUIDs: GET /api/search/record?entity=client&id=<uuid> */
 app.get("/api/search/record", (req, res) => {
@@ -2992,6 +3244,306 @@ function scheduleStockAlertEmailDailyLoop() {
   setTimeout(tick, firstDelay);
 }
 
+// ─── Factory Inventory Module (trust_factory workspace only) ────────────────
+
+const FACTORY_ITEM_SEED = [
+  { itemCode: "RM-001", description: "MS Plate 6mm", category: "Raw Material", unit: "KG", openingStock: 500, minStockLevel: 100, reorderQty: 500, unitCost: 2.5, supplier: "Gulf Steel", storageLocation: "Yard A" },
+  { itemCode: "CN-001", description: "Welding Electrode 3.2mm", category: "Consumable", unit: "KG", openingStock: 50, minStockLevel: 10, reorderQty: 50, unitCost: 3.0, supplier: "Al Essa Industrial", storageLocation: "Store B" },
+  { itemCode: "TL-001", description: 'Angle Grinder 4.5"', category: "Tool", unit: "PCS", openingStock: 5, minStockLevel: 2, reorderQty: 3, unitCost: 45.0, supplier: "Tools Direct", storageLocation: "Tool Store" },
+  { itemCode: "FG-001", description: "Fabricated Gate 3x2m", category: "Finished Good", unit: "PCS", openingStock: 2, minStockLevel: 0, reorderQty: 5, unitCost: 850.0, supplier: "Internal Production", storageLocation: "Dispatch Area" },
+];
+
+const FACTORY_CATEGORIES = ["Raw Material", "Consumable", "Tool", "Finished Good"];
+const FACTORY_STOCK_IN_SOURCES = ["Purchase", "Production"];
+const FACTORY_STOCK_OUT_PURPOSES = ["Job issue", "Tool checkout", "Dispatch"];
+
+function seedFactoryIfEmpty() {
+  const prev = activeCompanyId;
+  bindCompanyData("trust_factory");
+  if (factoryItems.length === 0) {
+    FACTORY_ITEM_SEED.forEach((seed) => {
+      factoryItems.push({ id: id(), createdAt: new Date().toISOString(), ...seed });
+    });
+    persistData();
+    console.log("[factory] Seeded demo item master for trust_factory.");
+  }
+  bindCompanyData(prev);
+}
+
+function requireFactoryCompany(req, res, next) {
+  if (req.companyId !== "trust_factory") {
+    return res.status(403).json({ success: false, message: "This endpoint is only available in the Trust Factory workspace." });
+  }
+  next();
+}
+
+function computeFactoryCurrentStock(itemCode) {
+  const item = factoryItems.find((i) => i.itemCode === itemCode);
+  if (!item) return 0;
+  const totalIn = factoryStockIns.filter((r) => r.itemCode === itemCode).reduce((s, r) => s + Number(r.qtyIn || 0), 0);
+  const totalOut = factoryStockOuts.filter((r) => r.itemCode === itemCode).reduce((s, r) => s + Number(r.qtyOut || 0), 0);
+  return Number(item.openingStock || 0) + totalIn - totalOut;
+}
+
+function computeFactoryDashboardRow(item) {
+  const currentStock = computeFactoryCurrentStock(item.itemCode);
+  const min = Number(item.minStockLevel || 0);
+  const status = currentStock <= min ? "REORDER" : "OK";
+  return {
+    ...item,
+    currentStock,
+    status,
+    qtyToProcure: status === "REORDER" ? Number(item.reorderQty || 0) : 0,
+    stockValue: currentStock * Number(item.unitCost || 0),
+  };
+}
+
+function checkAndCreateFactoryReorderAlert(itemCode) {
+  const item = factoryItems.find((i) => i.itemCode === itemCode);
+  if (!item) return;
+  const row = computeFactoryDashboardRow(item);
+  if (row.status !== "REORDER") {
+    const idx = factoryReorderAlerts.findIndex((a) => a.itemCode === itemCode && !a.acknowledged);
+    if (idx !== -1) factoryReorderAlerts.splice(idx, 1);
+    return;
+  }
+  const existing = factoryReorderAlerts.find((a) => a.itemCode === itemCode && !a.acknowledged);
+  if (existing) return;
+  const alert = {
+    id: id(),
+    itemCode,
+    description: item.description,
+    category: item.category,
+    unit: item.unit,
+    currentStock: row.currentStock,
+    minStockLevel: item.minStockLevel,
+    qtyToProcure: item.reorderQty,
+    unitCost: item.unitCost,
+    supplier: item.supplier,
+    estimatedCost: Number(item.reorderQty || 0) * Number(item.unitCost || 0),
+    triggeredAt: new Date().toISOString(),
+    acknowledged: false,
+  };
+  factoryReorderAlerts.push(alert);
+  const procPayload = {
+    id: id(),
+    source: "crane_factory_reorder",
+    itemCode,
+    description: item.description,
+    quantity: item.reorderQty,
+    unit: item.unit,
+    estimatedUnitCost: item.unitCost,
+    supplierHint: item.supplier,
+    purpose: "Factory stock at or below minimum",
+    currentStock: row.currentStock,
+    minStockLevel: item.minStockLevel,
+    stockValue: row.stockValue,
+    createdAt: new Date().toISOString(),
+    sentToTrust: false,
+  };
+  pendingProcurementRequests.push(procPayload);
+  const webhookUrl = process.env.TRUST_PROCUREMENT_WEBHOOK_URL;
+  if (webhookUrl) {
+    fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(procPayload) })
+      .then(() => { procPayload.sentToTrust = true; procPayload.sentAt = new Date().toISOString(); persistData(); })
+      .catch((err) => { console.warn("[factory] TRUST webhook failed:", err?.message || err); });
+  }
+}
+
+// ── Item Master ──
+app.get("/api/factory/items", requireAuth, requireFactoryCompany, (req, res) => {
+  const q = String(req.query.search || "").trim().toLowerCase();
+  let list = factoryItems.map((item) => computeFactoryDashboardRow(item));
+  if (q) list = list.filter((i) => i.itemCode.toLowerCase().includes(q) || i.description.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+  res.json(list);
+});
+
+app.get("/api/factory/items/:itemCode", requireAuth, requireFactoryCompany, (req, res) => {
+  const code = String(req.params.itemCode || "").trim().toUpperCase();
+  const item = factoryItems.find((i) => i.itemCode.toUpperCase() === code);
+  if (!item) return res.status(404).json({ success: false, message: "Item not found." });
+  res.json(computeFactoryDashboardRow(item));
+});
+
+app.post("/api/factory/items", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const { itemCode, description, category, unit, openingStock, minStockLevel, reorderQty, unitCost, supplier, storageLocation } = req.body || {};
+  const code = String(itemCode || "").trim().toUpperCase();
+  if (!code || !description || !category || !unit) {
+    return res.status(400).json({ success: false, message: "itemCode, description, category, and unit are required." });
+  }
+  if (!FACTORY_CATEGORIES.includes(category)) {
+    return res.status(400).json({ success: false, message: `category must be one of: ${FACTORY_CATEGORIES.join(", ")}.` });
+  }
+  if (factoryItems.find((i) => i.itemCode.toUpperCase() === code)) {
+    return res.status(409).json({ success: false, message: `Item code ${code} already exists.` });
+  }
+  const item = {
+    id: id(), itemCode: code, description: String(description).trim(), category: String(category).trim(),
+    unit: String(unit).trim(), openingStock: Number(openingStock || 0), minStockLevel: Number(minStockLevel || 0),
+    reorderQty: Number(reorderQty || 0), unitCost: Number(unitCost || 0),
+    supplier: String(supplier || "").trim(), storageLocation: String(storageLocation || "").trim(),
+    createdAt: new Date().toISOString(),
+  };
+  factoryItems.push(item);
+  persistData();
+  logActivity(req.user, { section: "Factory", action: "Created item", details: `${code} - ${item.description}` });
+  res.status(201).json(computeFactoryDashboardRow(item));
+});
+
+app.put("/api/factory/items/:itemCode", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const code = String(req.params.itemCode || "").trim().toUpperCase();
+  const idx = factoryItems.findIndex((i) => i.itemCode.toUpperCase() === code);
+  if (idx === -1) return res.status(404).json({ success: false, message: "Item not found." });
+  const { description, category, unit, openingStock, minStockLevel, reorderQty, unitCost, supplier, storageLocation } = req.body || {};
+  if (category && !FACTORY_CATEGORIES.includes(category)) {
+    return res.status(400).json({ success: false, message: `category must be one of: ${FACTORY_CATEGORIES.join(", ")}.` });
+  }
+  factoryItems[idx] = {
+    ...factoryItems[idx],
+    ...(description != null ? { description: String(description).trim() } : {}),
+    ...(category != null ? { category: String(category).trim() } : {}),
+    ...(unit != null ? { unit: String(unit).trim() } : {}),
+    ...(openingStock != null ? { openingStock: Number(openingStock) } : {}),
+    ...(minStockLevel != null ? { minStockLevel: Number(minStockLevel) } : {}),
+    ...(reorderQty != null ? { reorderQty: Number(reorderQty) } : {}),
+    ...(unitCost != null ? { unitCost: Number(unitCost) } : {}),
+    ...(supplier != null ? { supplier: String(supplier).trim() } : {}),
+    ...(storageLocation != null ? { storageLocation: String(storageLocation).trim() } : {}),
+    updatedAt: new Date().toISOString(),
+  };
+  persistData();
+  checkAndCreateFactoryReorderAlert(factoryItems[idx].itemCode);
+  persistData();
+  logActivity(req.user, { section: "Factory", action: "Updated item", details: `${code}` });
+  res.json(computeFactoryDashboardRow(factoryItems[idx]));
+});
+
+app.delete("/api/factory/items/:itemCode", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const code = String(req.params.itemCode || "").trim().toUpperCase();
+  const idx = factoryItems.findIndex((i) => i.itemCode.toUpperCase() === code);
+  if (idx === -1) return res.status(404).json({ success: false, message: "Item not found." });
+  factoryItems.splice(idx, 1);
+  factoryStockIns = factoryStockIns.filter((r) => r.itemCode.toUpperCase() !== code);
+  factoryStockOuts = factoryStockOuts.filter((r) => r.itemCode.toUpperCase() !== code);
+  factoryReorderAlerts = factoryReorderAlerts.filter((a) => a.itemCode.toUpperCase() !== code);
+  persistData();
+  logActivity(req.user, { section: "Factory", action: "Deleted item", details: code });
+  res.status(204).send();
+});
+
+// ── Stock In ──
+app.get("/api/factory/stock-in", requireAuth, requireFactoryCompany, (req, res) => {
+  const q = String(req.query.itemCode || "").trim().toUpperCase();
+  let list = q ? factoryStockIns.filter((r) => r.itemCode.toUpperCase() === q) : [...factoryStockIns];
+  list = [...list].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  res.json(list);
+});
+
+app.post("/api/factory/stock-in", requireCanEdit, requireFactoryCompany, async (req, res) => {
+  const { itemCode, qtyIn, date, unitCost, source, reference, receivedBy, remarks } = req.body || {};
+  const code = String(itemCode || "").trim().toUpperCase();
+  const item = factoryItems.find((i) => i.itemCode.toUpperCase() === code);
+  if (!item) return res.status(404).json({ success: false, message: "Item not found." });
+  const qty = Number(qtyIn || 0);
+  if (!qty || qty <= 0) return res.status(400).json({ success: false, message: "qtyIn must be a positive number." });
+  if (!date) return res.status(400).json({ success: false, message: "date is required." });
+  if (source && !FACTORY_STOCK_IN_SOURCES.includes(source)) {
+    return res.status(400).json({ success: false, message: `source must be one of: ${FACTORY_STOCK_IN_SOURCES.join(", ")}.` });
+  }
+  const effectiveUnitCost = unitCost != null ? Number(unitCost) : Number(item.unitCost || 0);
+  const record = {
+    id: id(), itemCode: code, description: item.description, category: item.category, unit: item.unit,
+    qtyIn: qty, date: String(date).trim(), unitCost: effectiveUnitCost, totalValue: qty * effectiveUnitCost,
+    source: String(source || "Purchase").trim(), reference: String(reference || "").trim(),
+    receivedBy: String(receivedBy || req.user?.displayName || req.user?.username || "").trim(),
+    remarks: String(remarks || "").trim(), createdAt: new Date().toISOString(),
+    createdBy: req.user?.displayName || req.user?.username || "User",
+  };
+  factoryStockIns.push(record);
+  checkAndCreateFactoryReorderAlert(code);
+  persistData();
+  logActivity(req.user, { section: "Factory", action: "Stock In", details: `${code} qty ${qty}` });
+  res.status(201).json({ ...record, currentStock: computeFactoryCurrentStock(code) });
+});
+
+// ── Stock Out ──
+app.get("/api/factory/stock-out", requireAuth, requireFactoryCompany, (req, res) => {
+  const q = String(req.query.itemCode || "").trim().toUpperCase();
+  let list = q ? factoryStockOuts.filter((r) => r.itemCode.toUpperCase() === q) : [...factoryStockOuts];
+  list = [...list].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  res.json(list);
+});
+
+app.post("/api/factory/stock-out", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const { itemCode, qtyOut, date, issuedToJobNo, purpose, issuedBy, remarks } = req.body || {};
+  const code = String(itemCode || "").trim().toUpperCase();
+  const item = factoryItems.find((i) => i.itemCode.toUpperCase() === code);
+  if (!item) return res.status(404).json({ success: false, message: "Item not found." });
+  const qty = Number(qtyOut || 0);
+  if (!qty || qty <= 0) return res.status(400).json({ success: false, message: "qtyOut must be a positive number." });
+  if (!date) return res.status(400).json({ success: false, message: "date is required." });
+  if (purpose && !FACTORY_STOCK_OUT_PURPOSES.includes(purpose)) {
+    return res.status(400).json({ success: false, message: `purpose must be one of: ${FACTORY_STOCK_OUT_PURPOSES.join(", ")}.` });
+  }
+  const currentStock = computeFactoryCurrentStock(code);
+  if (qty > currentStock) {
+    return res.status(400).json({ success: false, message: `Insufficient stock. Available: ${currentStock} ${item.unit}.` });
+  }
+  const record = {
+    id: id(), itemCode: code, description: item.description, category: item.category, unit: item.unit,
+    qtyOut: qty, date: String(date).trim(), issuedToJobNo: String(issuedToJobNo || "").trim(),
+    purpose: String(purpose || "Job issue").trim(), issuedBy: String(issuedBy || req.user?.displayName || req.user?.username || "").trim(),
+    remarks: String(remarks || "").trim(), createdAt: new Date().toISOString(),
+    createdBy: req.user?.displayName || req.user?.username || "User",
+  };
+  factoryStockOuts.push(record);
+  checkAndCreateFactoryReorderAlert(code);
+  persistData();
+  logActivity(req.user, { section: "Factory", action: "Stock Out", details: `${code} qty ${qty} → ${record.issuedToJobNo || record.purpose}` });
+  res.status(201).json({ ...record, currentStock: computeFactoryCurrentStock(code) });
+});
+
+// ── Dashboard ──
+app.get("/api/factory/stock-dashboard", requireAuth, requireFactoryCompany, (_req, res) => {
+  res.json(factoryItems.map((item) => computeFactoryDashboardRow(item)));
+});
+
+// ── Monthly Consumption ──
+app.get("/api/factory/monthly-consumption", requireAuth, requireFactoryCompany, (req, res) => {
+  const year = Number(req.query.year || new Date().getFullYear());
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const result = factoryItems.map((item) => {
+    const monthlyQty = Object.fromEntries(
+      months.map((m) => {
+        const key = String(m).padStart(2, "0");
+        const prefix = `${year}-${key}`;
+        const total = factoryStockOuts
+          .filter((r) => r.itemCode === item.itemCode && String(r.date || "").startsWith(prefix))
+          .reduce((s, r) => s + Number(r.qtyOut || 0), 0);
+        return [key, total];
+      })
+    );
+    const yearTotal = Object.values(monthlyQty).reduce((s, v) => s + Number(v), 0);
+    return { itemCode: item.itemCode, description: item.description, category: item.category, unit: item.unit, months: monthlyQty, yearTotal };
+  });
+  res.json({ year, items: result });
+});
+
+// ── Reorder Alerts ──
+app.get("/api/factory/reorder-alerts", requireAuth, requireFactoryCompany, (_req, res) => {
+  const open = factoryReorderAlerts.filter((a) => !a.acknowledged).map((a) => ({
+    ...a,
+    currentStock: computeFactoryCurrentStock(a.itemCode),
+    hasPendingRequest: pendingProcurementRequests.some((p) => p.itemCode === a.itemCode && !p.sentToTrust),
+  }));
+  res.json(open);
+});
+
+// ── Pending Procurement Requests ──
+app.get("/api/factory/procurement-requests", requireAuth, requireFactoryCompany, (_req, res) => {
+  res.json([...pendingProcurementRequests].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))));
+});
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "inventory-api" });
 });
@@ -3010,6 +3562,7 @@ async function startServer() {
   }
 
   hydrateGlobalStockAlertDigestDateFromCompanies();
+  seedFactoryIfEmpty();
 
   app.listen(PORT, () => {
     console.log(`Inventory Control System API running at http://localhost:${PORT}`);
