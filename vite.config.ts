@@ -101,6 +101,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: { ...apiProxy },
     },
+    appType: "spa",
   };
 });
 

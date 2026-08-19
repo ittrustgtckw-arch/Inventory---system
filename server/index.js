@@ -329,6 +329,7 @@ function defaultRoleEditAccess() {
   return {
     technician: false,
     account: false,
+    admin: false,
   };
 }
 
@@ -1078,7 +1079,6 @@ function buildFilesFolder(entityType, entityId) {
 function getCanEditForRole(role) {
   const r = String(role || "").trim().toLowerCase();
   if (r === "manager") return true;
-  if (r === "admin") return false;
   if (r === "account") return true;
   const acc = roleEditAccess;
   if (!acc || typeof acc !== "object" || Array.isArray(acc)) return false;
@@ -1517,12 +1517,12 @@ app.post("/api/permissions/grant", requireManager, (req, res) => {
     roleEditAccess = {
       technician: Boolean(next.technician),
       account: Boolean(next.account),
+      admin: Boolean(next.admin),
       ...next,
     };
 
-    // Prevent manager/admin from ever being stored as editable departments.
+    // Manager always has edit access; do not store it as a toggleable department.
     delete roleEditAccess.manager;
-    delete roleEditAccess.admin;
   }
 
   // Backward-compatible shape
@@ -1533,8 +1533,10 @@ app.post("/api/permissions/grant", requireManager, (req, res) => {
   logActivity(req.user, {
     section: "Permissions",
     action: "Updated edit permissions",
-    details: `technician=${Boolean(roleEditAccess.technician)}, account=${Boolean(roleEditAccess.account)}`,
+    details: `technician=${Boolean(roleEditAccess.technician)}, account=${Boolean(roleEditAccess.account)}, admin=${Boolean(roleEditAccess.admin)}`,
   });
+
+  persistData();
 
   res.json({
     success: true,
@@ -3546,6 +3548,23 @@ app.get("/api/factory/procurement-requests", requireAuth, requireFactoryCompany,
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "inventory-api" });
+});
+
+// SPA fallback so browser refresh on /factory/items (and other app routes) does not 404
+// when the API also serves the built frontend from dist/.
+const DIST_DIR = path.join(__dirname, "..", "dist");
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  const p = String(req.path || "");
+  if (p.startsWith("/api") || p.startsWith("/uploads")) return next();
+  const indexFile = path.join(DIST_DIR, "index.html");
+  if (!fs.existsSync(indexFile)) return next();
+  if (p.includes(".") && !p.endsWith(".html")) {
+    const asset = path.join(DIST_DIR, p);
+    if (fs.existsSync(asset)) return res.sendFile(asset);
+    return next();
+  }
+  return res.sendFile(indexFile);
 });
 
 async function startServer() {

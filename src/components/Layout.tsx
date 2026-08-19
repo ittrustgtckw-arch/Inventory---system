@@ -31,6 +31,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const [permissionsState, setPermissionsState] = useState<Record<string, boolean>>({
     technician: false,
     account: false,
+    admin: false,
   });
   const [newDepartment, setNewDepartment] = useState("");
   const [permissionLoading, setPermissionLoading] = useState(false);
@@ -126,11 +127,13 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
             });
             if (next.technician == null) next.technician = false;
             if (next.account == null) next.account = false;
+            if (next.admin == null) next.admin = false;
             setPermissionsState(next);
           } else {
             setPermissionsState({
               technician: Boolean((permData as { technicianCanEdit?: boolean }).technicianCanEdit),
               account: Boolean((permData as { accountCanEdit?: boolean }).accountCanEdit),
+              admin: false,
             });
           }
         } else {
@@ -288,14 +291,18 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const handleAddDepartment = () => {
     const key = normalizeDepartmentKey(newDepartment);
     if (!key) return;
-    if (key === "manager" || key === "admin") return;
+    if (key === "manager") {
+      setPermissionError("Manager always has edit access. Use the Admin row below to grant admin edit permission.");
+      return;
+    }
+    setPermissionError("");
     setPermissionsState((p) => (p[key] != null ? p : { ...p, [key]: false }));
     setNewDepartment("");
   };
 
   const handleDeleteDepartment = (key: string) => {
     // Keep base departments stable in this demo app.
-    if (key === "technician" || key === "account") return;
+    if (key === "technician" || key === "account" || key === "admin") return;
     setPermissionsState((p) => {
       if (p[key] == null) return p;
       const next = { ...p };
@@ -333,6 +340,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
         });
         if (next.technician == null) next.technician = false;
         if (next.account == null) next.account = false;
+        if (next.admin == null) next.admin = false;
         setPermissionsState(next);
       }
 
@@ -744,7 +752,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
                           </div>
 
                           {Object.keys(permissionsState)
-                            .filter((k) => k !== "manager" && k !== "admin")
+                            .filter((k) => k !== "manager")
                             .sort((a, b) => a.localeCompare(b))
                             .map((k) => (
                               <div key={k} className="permission-dept-card">
@@ -759,7 +767,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
                                     disabled={permissionSaving}
                                   />
                                 </label>
-                                {k === "technician" || k === "account" ? null : (
+                                {k === "technician" || k === "account" || k === "admin" ? null : (
                                   <button
                                     type="button"
                                     className="btn btn-sm btn-outline-danger permission-dept-remove"
