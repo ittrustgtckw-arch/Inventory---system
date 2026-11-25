@@ -207,25 +207,16 @@ export const FactoryStockOut: React.FC = () => {
           <table className="data-table stock-table factory-ledger-table">
             <thead>
               <tr>
-                {canEdit && <th className="data-table-col-actions">Actions</th>}
                 <th>Date</th><th>Item Code</th><th>Description</th><th>Unit</th>
                 <th style={{ textAlign: "right" }}>Qty Out</th>
                 <th>Purpose</th><th>Job No / Issued To</th><th>Issued By</th><th>Remarks</th>
                 <th>Modified</th>
+                {canEdit && <th className="data-table-col-actions">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  {canEdit && (
-                    <td className="data-table-col-actions">
-                      <div className="data-table-actions-inner">
-                        <button type="button" className="btn-sm stock-action-btn stock-view-btn" onClick={() => openEdit(r)} title="Modify entry">
-                          <i className="bi bi-pencil me-1" /> Modify
-                        </button>
-                      </div>
-                    </td>
-                  )}
                   <td className="factory-col-nowrap">{r.date}</td>
                   <td className="factory-col-nowrap"><strong>{r.itemCode}</strong></td>
                   <td className="factory-col-desc" title={r.description}>{r.description}</td>
@@ -243,6 +234,15 @@ export const FactoryStockOut: React.FC = () => {
                       </button>
                     ) : "—"}
                   </td>
+                  {canEdit && (
+                    <td className="data-table-col-actions">
+                      <div className="data-table-actions-inner">
+                        <button type="button" className="btn-sm stock-action-btn stock-view-btn" onClick={() => openEdit(r)} title="Modify entry">
+                          <i className="bi bi-pencil me-1" /> Modify
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

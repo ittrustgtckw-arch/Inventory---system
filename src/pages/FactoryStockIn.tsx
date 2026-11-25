@@ -194,27 +194,18 @@ export const FactoryStockIn: React.FC = () => {
           <table className="data-table stock-table factory-ledger-table">
             <thead>
               <tr>
-                {canEdit && <th className="data-table-col-actions">Actions</th>}
                 <th>Date</th><th>Item Code</th><th>Description</th><th>Category</th><th>Unit</th>
                 <th style={{ textAlign: "right" }}>Qty In</th>
                 <th style={{ textAlign: "right" }}>Unit Cost</th>
                 <th style={{ textAlign: "right" }}>Total Value</th>
                 <th>Source</th><th>Reference / PO</th><th>Received By</th><th>Remarks</th>
                 <th>Modified</th>
+                {canEdit && <th className="data-table-col-actions">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  {canEdit && (
-                    <td className="data-table-col-actions">
-                      <div className="data-table-actions-inner">
-                        <button type="button" className="btn-sm stock-action-btn stock-view-btn" onClick={() => openEdit(r)} title="Modify entry">
-                          <i className="bi bi-pencil me-1" /> Modify
-                        </button>
-                      </div>
-                    </td>
-                  )}
                   <td className="factory-col-nowrap">{r.date}</td>
                   <td className="factory-col-nowrap"><strong>{r.itemCode}</strong></td>
                   <td className="factory-col-desc" title={r.description}>{r.description}</td>
@@ -235,6 +226,15 @@ export const FactoryStockIn: React.FC = () => {
                       </button>
                     ) : "—"}
                   </td>
+                  {canEdit && (
+                    <td className="data-table-col-actions">
+                      <div className="data-table-actions-inner">
+                        <button type="button" className="btn-sm stock-action-btn stock-view-btn" onClick={() => openEdit(r)} title="Modify entry">
+                          <i className="bi bi-pencil me-1" /> Modify
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

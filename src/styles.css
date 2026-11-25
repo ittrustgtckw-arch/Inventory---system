@@ -9074,14 +9074,14 @@ body.mobile-nav-open {
 .page-factory .factory-ledger-table th.data-table-col-actions,
 .page-factory .factory-ledger-table td.data-table-col-actions {
   position: sticky;
-  left: 0;
+  right: 0;
   z-index: 3;
   min-width: 7.5rem;
   width: 7.5rem;
   padding-left: 0.9rem;
   padding-right: 0.9rem;
   background: #fff;
-  box-shadow: 4px 0 10px -6px rgba(15, 23, 42, 0.28);
+  box-shadow: -4px 0 10px -6px rgba(15, 23, 42, 0.28);
   white-space: nowrap;
 }
 
@@ -9096,7 +9096,7 @@ body.mobile-nav-open {
 
 .page-factory .factory-ledger-table .data-table-actions-inner {
   flex-wrap: nowrap;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .page-factory .factory-ledger-table .data-table-actions-inner .stock-action-btn {
