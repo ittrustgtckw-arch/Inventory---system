@@ -3468,6 +3468,92 @@ app.post("/api/factory/stock-in", requireCanEdit, requireFactoryCompany, async (
   res.status(201).json({ ...record, currentStock: computeFactoryCurrentStock(code) });
 });
 
+app.put("/api/factory/stock-in/:id", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const recordId = String(req.params.id || "").trim();
+  const idx = factoryStockIns.findIndex((r) => r.id === recordId);
+  if (idx === -1) return res.status(404).json({ success: false, message: "Stock In record not found." });
+
+  const existing = factoryStockIns[idx];
+  const { qtyIn, date, unitCost, source, reference, receivedBy, remarks, modificationReason } = req.body || {};
+  const reason = String(modificationReason || "").trim();
+  if (!reason) {
+    return res.status(400).json({ success: false, message: "Modification reason is required." });
+  }
+
+  const nextQty = qtyIn != null ? Number(qtyIn) : Number(existing.qtyIn || 0);
+  if (!nextQty || nextQty <= 0) return res.status(400).json({ success: false, message: "qtyIn must be a positive number." });
+  const nextDate = date != null ? String(date).trim() : String(existing.date || "");
+  if (!nextDate) return res.status(400).json({ success: false, message: "date is required." });
+  const nextSource = source != null ? String(source).trim() : String(existing.source || "Purchase");
+  if (nextSource && !FACTORY_STOCK_IN_SOURCES.includes(nextSource)) {
+    return res.status(400).json({ success: false, message: `source must be one of: ${FACTORY_STOCK_IN_SOURCES.join(", ")}.` });
+  }
+  const nextUnitCost = unitCost != null ? Number(unitCost) : Number(existing.unitCost || 0);
+  const nextReference = reference != null ? String(reference).trim() : String(existing.reference || "");
+  const nextReceivedBy = receivedBy != null ? String(receivedBy).trim() : String(existing.receivedBy || "");
+  const nextRemarks = remarks != null ? String(remarks).trim() : String(existing.remarks || "");
+
+  // Temporarily apply qty change to validate stock never goes negative.
+  const previousQty = Number(existing.qtyIn || 0);
+  existing.qtyIn = nextQty;
+  const projectedStock = computeFactoryCurrentStock(existing.itemCode);
+  existing.qtyIn = previousQty;
+  if (projectedStock < 0) {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot reduce qty that much — stock would go negative (projected: ${projectedStock}).`,
+    });
+  }
+
+  const beforeSnapshot = {
+    qtyIn: existing.qtyIn,
+    date: existing.date,
+    unitCost: existing.unitCost,
+    totalValue: existing.totalValue,
+    source: existing.source,
+    reference: existing.reference,
+    receivedBy: existing.receivedBy,
+    remarks: existing.remarks,
+  };
+  const afterSnapshot = {
+    qtyIn: nextQty,
+    date: nextDate,
+    unitCost: nextUnitCost,
+    totalValue: nextQty * nextUnitCost,
+    source: nextSource,
+    reference: nextReference,
+    receivedBy: nextReceivedBy,
+    remarks: nextRemarks,
+  };
+
+  const history = Array.isArray(existing.modificationHistory) ? existing.modificationHistory : [];
+  history.push({
+    id: id(),
+    modifiedAt: new Date().toISOString(),
+    modifiedBy: req.user?.displayName || req.user?.username || req.user?.role || "User",
+    reason,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+  });
+
+  factoryStockIns[idx] = {
+    ...existing,
+    ...afterSnapshot,
+    modificationHistory: history,
+    lastModifiedAt: new Date().toISOString(),
+    lastModifiedBy: req.user?.displayName || req.user?.username || req.user?.role || "User",
+    lastModificationReason: reason,
+  };
+  checkAndCreateFactoryReorderAlert(existing.itemCode);
+  persistData();
+  logActivity(req.user, {
+    section: "Factory",
+    action: "Modified Stock In",
+    details: `${existing.itemCode} id=${recordId}; qty ${beforeSnapshot.qtyIn}→${nextQty}; reason: ${reason}`,
+  });
+  res.json({ ...factoryStockIns[idx], currentStock: computeFactoryCurrentStock(existing.itemCode) });
+});
+
 // ── Stock Out ──
 app.get("/api/factory/stock-out", requireAuth, requireFactoryCompany, (req, res) => {
   const q = String(req.query.itemCode || "").trim().toUpperCase();
@@ -3503,6 +3589,85 @@ app.post("/api/factory/stock-out", requireCanEdit, requireFactoryCompany, (req, 
   persistData();
   logActivity(req.user, { section: "Factory", action: "Stock Out", details: `${code} qty ${qty} → ${record.issuedToJobNo || record.purpose}` });
   res.status(201).json({ ...record, currentStock: computeFactoryCurrentStock(code) });
+});
+
+app.put("/api/factory/stock-out/:id", requireCanEdit, requireFactoryCompany, (req, res) => {
+  const recordId = String(req.params.id || "").trim();
+  const idx = factoryStockOuts.findIndex((r) => r.id === recordId);
+  if (idx === -1) return res.status(404).json({ success: false, message: "Stock Out record not found." });
+
+  const existing = factoryStockOuts[idx];
+  const { qtyOut, date, issuedToJobNo, purpose, issuedBy, remarks, modificationReason } = req.body || {};
+  const reason = String(modificationReason || "").trim();
+  if (!reason) {
+    return res.status(400).json({ success: false, message: "Modification reason is required." });
+  }
+
+  const nextQty = qtyOut != null ? Number(qtyOut) : Number(existing.qtyOut || 0);
+  if (!nextQty || nextQty <= 0) return res.status(400).json({ success: false, message: "qtyOut must be a positive number." });
+  const nextDate = date != null ? String(date).trim() : String(existing.date || "");
+  if (!nextDate) return res.status(400).json({ success: false, message: "date is required." });
+  const nextPurpose = purpose != null ? String(purpose).trim() : String(existing.purpose || "Job issue");
+  if (nextPurpose && !FACTORY_STOCK_OUT_PURPOSES.includes(nextPurpose)) {
+    return res.status(400).json({ success: false, message: `purpose must be one of: ${FACTORY_STOCK_OUT_PURPOSES.join(", ")}.` });
+  }
+  const nextIssuedTo = issuedToJobNo != null ? String(issuedToJobNo).trim() : String(existing.issuedToJobNo || "");
+  const nextIssuedBy = issuedBy != null ? String(issuedBy).trim() : String(existing.issuedBy || "");
+  const nextRemarks = remarks != null ? String(remarks).trim() : String(existing.remarks || "");
+
+  // Validate stock after replacing this out qty (add old qty back first as available).
+  const previousQty = Number(existing.qtyOut || 0);
+  const availableIfRemoved = computeFactoryCurrentStock(existing.itemCode) + previousQty;
+  if (nextQty > availableIfRemoved) {
+    return res.status(400).json({
+      success: false,
+      message: `Insufficient stock. Available for this change: ${availableIfRemoved} ${existing.unit}.`,
+    });
+  }
+
+  const beforeSnapshot = {
+    qtyOut: existing.qtyOut,
+    date: existing.date,
+    issuedToJobNo: existing.issuedToJobNo,
+    purpose: existing.purpose,
+    issuedBy: existing.issuedBy,
+    remarks: existing.remarks,
+  };
+  const afterSnapshot = {
+    qtyOut: nextQty,
+    date: nextDate,
+    issuedToJobNo: nextIssuedTo,
+    purpose: nextPurpose,
+    issuedBy: nextIssuedBy,
+    remarks: nextRemarks,
+  };
+
+  const history = Array.isArray(existing.modificationHistory) ? existing.modificationHistory : [];
+  history.push({
+    id: id(),
+    modifiedAt: new Date().toISOString(),
+    modifiedBy: req.user?.displayName || req.user?.username || req.user?.role || "User",
+    reason,
+    before: beforeSnapshot,
+    after: afterSnapshot,
+  });
+
+  factoryStockOuts[idx] = {
+    ...existing,
+    ...afterSnapshot,
+    modificationHistory: history,
+    lastModifiedAt: new Date().toISOString(),
+    lastModifiedBy: req.user?.displayName || req.user?.username || req.user?.role || "User",
+    lastModificationReason: reason,
+  };
+  checkAndCreateFactoryReorderAlert(existing.itemCode);
+  persistData();
+  logActivity(req.user, {
+    section: "Factory",
+    action: "Modified Stock Out",
+    details: `${existing.itemCode} id=${recordId}; qty ${beforeSnapshot.qtyOut}→${nextQty}; reason: ${reason}`,
+  });
+  res.json({ ...factoryStockOuts[idx], currentStock: computeFactoryCurrentStock(existing.itemCode) });
 });
 
 // ── Dashboard ──
