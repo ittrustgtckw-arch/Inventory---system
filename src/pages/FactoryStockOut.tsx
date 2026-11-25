@@ -203,37 +203,20 @@ export const FactoryStockOut: React.FC = () => {
         <div className="card"><div className="stock-empty"><div className="stock-empty-icon"><i className="bi bi-box-arrow-up" /></div><div className="stock-empty-title">No records yet</div></div></div>
       )}
       {!loading && filtered.length > 0 && (
-        <div className="table-wrapper">
-          <table className="data-table stock-table">
+        <div className="table-wrapper factory-ledger-wrap">
+          <table className="data-table stock-table factory-ledger-table">
             <thead>
               <tr>
+                {canEdit && <th className="data-table-col-actions">Actions</th>}
                 <th>Date</th><th>Item Code</th><th>Description</th><th>Unit</th>
                 <th style={{ textAlign: "right" }}>Qty Out</th>
                 <th>Purpose</th><th>Job No / Issued To</th><th>Issued By</th><th>Remarks</th>
                 <th>Modified</th>
-                {canEdit && <th className="data-table-col-actions">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {filtered.map((r) => (
                 <tr key={r.id}>
-                  <td>{r.date}</td>
-                  <td><strong>{r.itemCode}</strong></td>
-                  <td>{r.description}</td>
-                  <td>{r.unit}</td>
-                  <td style={{ textAlign: "right", color: "#dc2626", fontWeight: 600 }}>{r.qtyOut}</td>
-                  <td><span className="status-pill" style={{ background: "#fef3c7", color: "#92400e", border: "none" }}>{r.purpose}</span></td>
-                  <td>{r.issuedToJobNo || "—"}</td>
-                  <td className="text-muted small">{r.issuedBy || "—"}</td>
-                  <td className="text-muted small">{r.remarks || "—"}</td>
-                  <td className="small">
-                    {r.lastModifiedAt ? (
-                      <button type="button" className="btn btn-link btn-sm p-0 text-warning" onClick={() => setHistoryRecord(r)} title={r.lastModificationReason || "View history"}>
-                        <i className="bi bi-pencil-square me-1" />
-                        {r.lastModifiedAt.slice(0, 10)}
-                      </button>
-                    ) : "—"}
-                  </td>
                   {canEdit && (
                     <td className="data-table-col-actions">
                       <div className="data-table-actions-inner">
@@ -243,6 +226,23 @@ export const FactoryStockOut: React.FC = () => {
                       </div>
                     </td>
                   )}
+                  <td className="factory-col-nowrap">{r.date}</td>
+                  <td className="factory-col-nowrap"><strong>{r.itemCode}</strong></td>
+                  <td className="factory-col-desc" title={r.description}>{r.description}</td>
+                  <td className="factory-col-nowrap">{r.unit}</td>
+                  <td className="factory-col-nowrap" style={{ textAlign: "right", color: "#dc2626", fontWeight: 600 }}>{r.qtyOut}</td>
+                  <td className="factory-col-nowrap"><span className="status-pill" style={{ background: "#fef3c7", color: "#92400e", border: "none" }}>{r.purpose}</span></td>
+                  <td className="factory-col-clip" title={r.issuedToJobNo || undefined}>{r.issuedToJobNo || "—"}</td>
+                  <td className="factory-col-clip text-muted small" title={r.issuedBy || undefined}>{r.issuedBy || "—"}</td>
+                  <td className="factory-col-clip text-muted small" title={r.remarks || undefined}>{r.remarks || "—"}</td>
+                  <td className="factory-col-nowrap small">
+                    {r.lastModifiedAt ? (
+                      <button type="button" className="btn btn-link btn-sm p-0 text-warning" onClick={() => setHistoryRecord(r)} title={r.lastModificationReason || "View history"}>
+                        <i className="bi bi-pencil-square me-1" />
+                        {r.lastModifiedAt.slice(0, 10)}
+                      </button>
+                    ) : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -252,13 +252,16 @@ export const FactoryStockOut: React.FC = () => {
 
       {showForm && (
         <div className="stock-delete-modal-backdrop factory-form-backdrop" role="dialog" aria-modal="true" aria-labelledby="factory-stock-out-title">
-          <div className="stock-delete-modal factory-form-modal factory-form-modal--out card border-0 shadow-lg">
+          <div className={`stock-delete-modal factory-form-modal factory-form-modal--out card border-0 shadow-lg${editingId ? " factory-form-modal--modify" : ""}`}>
             <div className="factory-form-modal-header">
               <div className="factory-form-modal-icon" aria-hidden>
                 <i className={`bi ${editingId ? "bi-pencil-square" : "bi-box-arrow-up"}`} />
               </div>
-              <div>
-                <h4 id="factory-stock-out-title" className="mb-1">{editingId ? "Modify Stock Out" : "Issue Stock Out"}</h4>
+              <div className="factory-form-modal-heading">
+                <div className="factory-form-modal-title-row">
+                  <h4 id="factory-stock-out-title" className="mb-0">{editingId ? "Modify Stock Out" : "Issue Stock Out"}</h4>
+                  {editingId && <span className="factory-form-mode-badge">Correction</span>}
+                </div>
                 <p className="text-muted mb-0 small">
                   {editingId
                     ? "Correct a wrong issue entry. A clear modification reason is required and will be recorded."
@@ -267,84 +270,102 @@ export const FactoryStockOut: React.FC = () => {
               </div>
             </div>
             {error && <div className="alert alert-danger py-2 small mb-3">{error}</div>}
-            <div className="row g-3 g-md-4">
-              <div className="col-12">
-                <label className="form-label fw-semibold">Item Code *</label>
-                <select className="form-select" value={form.itemCode}
-                  onChange={(e) => handleItemSelect(e.target.value)} disabled={saving || !!editingId}>
-                  <option value="">— select item —</option>
-                  {items.map((i) => (
-                    <option key={i.itemCode} value={i.itemCode}>
-                      {i.itemCode} — {i.description} (available: {i.currentStock} {i.unit})
-                    </option>
-                  ))}
-                </select>
-                {autoFill && (
-                  <div className="factory-form-autofill alert alert-warning py-2 px-3 mt-2 mb-0 d-flex flex-wrap gap-3">
-                    <span><strong>Description:</strong> {autoFill.description}</span>
-                    <span><strong>Category:</strong> {autoFill.category}</span>
-                    <span style={{ color: availableForEdit <= 0 ? "#dc2626" : undefined }}>
-                      <strong>Available:</strong> {availableForEdit} {autoFill.unit}
-                    </span>
+            <div className="factory-form-body">
+              <section className="factory-form-section">
+                <div className="factory-form-section-label"><i className="bi bi-box-seam me-1" />Item</div>
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Item Code *</label>
+                    <select className="form-select" value={form.itemCode}
+                      onChange={(e) => handleItemSelect(e.target.value)} disabled={saving || !!editingId}>
+                      <option value="">— select item —</option>
+                      {items.map((i) => (
+                        <option key={i.itemCode} value={i.itemCode}>
+                          {i.itemCode} — {i.description} (available: {i.currentStock} {i.unit})
+                        </option>
+                      ))}
+                    </select>
+                    {autoFill && (
+                      <div className="factory-form-autofill alert alert-warning py-2 px-3 mt-2 mb-0 d-flex flex-wrap gap-3">
+                        <span><strong>Description:</strong> {autoFill.description}</span>
+                        <span><strong>Category:</strong> {autoFill.category}</span>
+                        <span style={{ color: availableForEdit <= 0 ? "#dc2626" : undefined }}>
+                          <strong>Available:</strong> {availableForEdit} {autoFill.unit}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">Qty Out *</label>
-                <input type="number" min={0.001} step={0.001} className={`form-control${overStock ? " is-invalid" : ""}`}
-                  value={form.qtyOut} onChange={(e) => setForm((f) => ({ ...f, qtyOut: e.target.value }))} disabled={saving} />
-                {overStock && <div className="invalid-feedback">Exceeds available stock ({availableForEdit} {autoFill?.unit || selectedItem?.unit}).</div>}
-              </div>
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">Date *</label>
-                <input type="date" className="form-control" value={form.date}
-                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} disabled={saving} />
-              </div>
-              <div className="col-md-4">
-                <label className="form-label fw-semibold">Purpose</label>
-                <select className="form-select" value={form.purpose}
-                  onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))} disabled={saving}>
-                  {PURPOSES.map((p) => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">Job No / Issued To</label>
-                <input className="form-control" placeholder="WO-2025-001 or person name" value={form.issuedToJobNo}
-                  onChange={(e) => setForm((f) => ({ ...f, issuedToJobNo: e.target.value }))} disabled={saving} />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-semibold">Issued By</label>
-                <input className="form-control" value={form.issuedBy}
-                  onChange={(e) => setForm((f) => ({ ...f, issuedBy: e.target.value }))} disabled={saving} />
-              </div>
-              <div className="col-12">
-                <label className="form-label fw-semibold">Remarks</label>
-                <textarea className="form-control factory-form-remarks" rows={2} value={form.remarks}
-                  onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} disabled={saving} />
-              </div>
+                </div>
+              </section>
+
+              <section className="factory-form-section">
+                <div className="factory-form-section-label"><i className="bi bi-sliders me-1" />Issue details</div>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold">Qty Out *</label>
+                    <input type="number" min={0.001} step={0.001} className={`form-control${overStock ? " is-invalid" : ""}`}
+                      value={form.qtyOut} onChange={(e) => setForm((f) => ({ ...f, qtyOut: e.target.value }))} disabled={saving} />
+                    {overStock && <div className="invalid-feedback">Exceeds available stock ({availableForEdit} {autoFill?.unit || selectedItem?.unit}).</div>}
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold">Date *</label>
+                    <input type="date" className="form-control" value={form.date}
+                      onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} disabled={saving} />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label fw-semibold">Purpose</label>
+                    <select className="form-select" value={form.purpose}
+                      onChange={(e) => setForm((f) => ({ ...f, purpose: e.target.value }))} disabled={saving}>
+                      {PURPOSES.map((p) => <option key={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Job No / Issued To</label>
+                    <input className="form-control" placeholder="WO-2025-001 or person name" value={form.issuedToJobNo}
+                      onChange={(e) => setForm((f) => ({ ...f, issuedToJobNo: e.target.value }))} disabled={saving} />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Issued By</label>
+                    <input className="form-control" value={form.issuedBy}
+                      onChange={(e) => setForm((f) => ({ ...f, issuedBy: e.target.value }))} disabled={saving} />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Remarks</label>
+                    <textarea className="form-control factory-form-remarks" rows={2} value={form.remarks}
+                      onChange={(e) => setForm((f) => ({ ...f, remarks: e.target.value }))} disabled={saving} />
+                  </div>
+                </div>
+              </section>
+
               {editingId && (
-                <div className="col-12">
-                  <label className="form-label fw-semibold">Reason for modification *</label>
+                <section className="factory-form-section factory-form-audit">
+                  <div className="factory-form-section-label">
+                    <i className="bi bi-journal-text me-1" />Audit trail
+                    <span className="factory-form-required-pill">Required</span>
+                  </div>
+                  <p className="factory-form-audit-hint mb-2">This reason is saved permanently with who changed the entry and when.</p>
+                  <label className="form-label fw-semibold" htmlFor="factory-stock-out-reason">Reason for modification *</label>
                   <textarea
-                    className="form-control"
-                    rows={2}
+                    id="factory-stock-out-reason"
+                    className="form-control factory-form-reason"
+                    rows={3}
                     placeholder="Explain why this entry is being corrected (required)"
                     value={form.modificationReason}
                     onChange={(e) => setForm((f) => ({ ...f, modificationReason: e.target.value }))}
                     disabled={saving}
                   />
-                </div>
+                </section>
               )}
             </div>
             <div className="factory-form-modal-actions d-flex justify-content-end gap-2">
               <button type="button" className="btn btn-outline-secondary px-4" onClick={closeForm} disabled={saving}>Cancel</button>
               <button
                 type="button"
-                className="btn btn-danger px-4"
+                className={`btn px-4${editingId ? " btn-warning factory-form-save-modify" : " btn-danger"}`}
                 onClick={() => void handleSave()}
                 disabled={saving || !form.itemCode || !form.qtyOut || !form.date || !!overStock || (!!editingId && !form.modificationReason.trim())}
               >
-                {saving ? "Saving…" : editingId ? "Save Modification" : "Issue Stock Out"}
+                {saving ? "Saving…" : editingId ? (<><i className="bi bi-check2-circle me-1" />Save Modification</>) : "Issue Stock Out"}
               </button>
             </div>
           </div>
